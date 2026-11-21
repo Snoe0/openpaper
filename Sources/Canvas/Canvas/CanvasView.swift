@@ -13,6 +13,8 @@ protocol CanvasViewDelegate: AnyObject {
     func canvasView(_ canvasView: CanvasView, didClickBoard id: String?, extendingSelection: Bool)
     func canvasView(_ canvasView: CanvasView, didDoubleClickBoard id: String)
     func canvasView(_ canvasView: CanvasView, didMoveBoard id: String, to origin: CGPoint)
+    /// A right-click or control-click on a board, or on its title; `boardPoint` is in the board's CSS pixels.
+    func canvasView(_ canvasView: CanvasView, didRequestMenuForBoard id: String, at boardPoint: CGPoint, onTitle: Bool)
     func canvasViewDidChangeZoom(_ canvasView: CanvasView)
     /// The viewport stopped moving and boards were laid out crisply at the new scale.
     func canvasViewDidSettle(_ canvasView: CanvasView)
@@ -45,6 +47,10 @@ final class CanvasView: NSView {
     /// The board under the pointer (including its title row and the hover bar).
     var hoveredID: String? {
         didSet { if hoveredID != oldValue { chromeDidChange() } }
+    }
+    /// An element outlined on a board (its box in the board's CSS pixels), while its pointer menu is open.
+    var outlinedElement: (boardID: String, box: CGRect)? {
+        didSet { chromeDidChange() }
     }
     /// The board the hover bar belongs to: the hovered one, else the first selected one.
     var hoverTargetID: String? { hoveredID ?? selectedIDs.first }
@@ -113,6 +119,11 @@ final class CanvasView: NSView {
     /// outlines, hit-testing and the hover bar all use this one rect.
     func screenRect(ofBoard id: String) -> CGRect? {
         board(id).map { screenRect(of: $0.rect, in: viewport) }
+    }
+
+    /// A point given in a board's CSS pixels (canvas points from its top-left corner), on screen now.
+    func screenPoint(onBoard id: String, at boardPoint: CGPoint) -> CGPoint? {
+        board(id).map { viewport.screenPoint(fromCanvas: CGPoint(x: $0.rect.minX + boardPoint.x, y: $0.rect.minY + boardPoint.y)) }
     }
 
     /// The smallest rect around the given boards (all when nil), in canvas points.
@@ -232,13 +243,20 @@ final class CanvasView: NSView {
     func chromeDidChange() {
         overlay.update(
             boards: boards.map { ($0, screenRect(of: $0.rect, in: viewport)) },
-            selectedIDs: Set(selectedIDs), hoveredID: hoveredID
+            selectedIDs: Set(selectedIDs), hoveredID: hoveredID, elementOutline: outlinedElementRect()
         )
         placeHoverBar()
         if hoverTargetID != lastHoverTarget {
             lastHoverTarget = hoverTargetID
             delegate?.canvasViewDidChangeHoverTarget(self)
         }
+    }
+
+    /// The outlined element on screen, clipped to its board.
+    private func outlinedElementRect() -> CGRect? {
+        guard let outlinedElement, let board = board(outlinedElement.boardID) else { return nil }
+        let box = outlinedElement.box.offsetBy(dx: board.rect.minX, dy: board.rect.minY).intersection(board.rect)
+        return box.isNull ? nil : screenRect(of: box, in: viewport)
     }
 
     /// Right-aligned in the strip above the target board.

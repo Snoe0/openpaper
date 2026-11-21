@@ -16,11 +16,12 @@ extension CanvasViewController {
         refreshHoverBar()
     }
 
-    /// The policy's choice, with the inspected board kept live whatever its size (it counts toward the
-    /// capacity and area budget). Boards whose page keeps crashing are left out.
+    /// The policy's choice, with the board whose pointer menu is open and the inspected board kept live
+    /// whatever their size (they count toward the capacity and area budget). Boards whose page keeps crashing are left out.
     private func desiredLiveBoards() -> [String] {
         let frames = canvasView.boards.filter { !crashedBoards.contains($0.id) }.map { BoardFrame(id: $0.id, rect: $0.rect) }
-        return policy.liveBoards(frames, viewport: canvasView.viewport, screenSize: canvasView.bounds.size, keeping: inspectedID)
+        let kept = [pointedID, inspectedID].compactMap { $0 }
+        return policy.liveBoards(frames, viewport: canvasView.viewport, screenSize: canvasView.bounds.size, keeping: kept)
     }
 
     /// Failed off-screen renders get another go, except for boards whose page keeps crashing: those
@@ -79,6 +80,7 @@ extension CanvasViewController {
         live.onMessage = { [weak self] board, body in self?.handleMessage(body, from: board) }
         live.onLoad = { [weak self] board in self?.canvasView.boardView(board.artboardID)?.revealLoadedPage() }
         live.onCrash = { [weak self] board in self?.pageCrashed(board) }
+        live.webView.onContextClick = { [weak self] event in self?.canvasView.rightMouseDown(with: event) }
         liveBoards[id] = live
         attach(live)
         live.load()
@@ -138,8 +140,7 @@ extension CanvasViewController {
     /// board's look while it reloads). The full-size PNG stays on disk. Returns once it is shown.
     func showSnapshot(_ png: Data, on id: String, sharpAt scale: CGFloat = 0) async {
         guard let size = canvasView.board(id)?.rect.size, let boardView = canvasView.boardView(id) else { return }
-        let backing = view.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let pixels = Int((max(size.width, size.height) * max(policy.minLiveScale, scale) * backing).rounded(.up))
+        let pixels = Int((max(size.width, size.height) * max(policy.minLiveScale, scale) * view.screenScale).rounded(.up))
         await boardView.showSnapshot(png, maxPixelSize: max(pixels, 1))
     }
 

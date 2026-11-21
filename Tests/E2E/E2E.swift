@@ -42,6 +42,7 @@ func runEndToEnd() {
     step("a board's scripted link click stays on the board") { checkScriptedClickStaysOnTheBoard(mcp) }
     step("console has no errors") { checkConsoleIsClean(mcp) }
     step("pages round trip") { checkPagesRoundTrip(mcp, boardsOnFirstPage: boards.count) }
+    step("get_element resolves pointers, and says why one is stale") { checkPointers(mcp) }
 
     pass()
 }
@@ -68,7 +69,7 @@ func checkToolList(_ mcp: MCPClient) {
 let expectedTools: Set = [
     "get_document", "open_document", "create_document", "list_pages", "create_page", "switch_page",
     "create_artboard", "read_artboard", "write_artboard", "edit_artboard", "update_artboard", "delete_artboard",
-    "duplicate_artboard", "get_selection", "screenshot", "get_console", "focus_artboard", "list_components",
+    "duplicate_artboard", "get_selection", "screenshot", "get_element", "get_console", "focus_artboard", "list_components",
     "read_component", "write_component", "delete_component", "get_tokens", "set_tokens", "set_mode",
 ]
 
@@ -204,6 +205,33 @@ func checkPagesRoundTrip(_ mcp: MCPClient, boardsOnFirstPage: Int) {
     expect(currentPage(mcp)["id"] as? String == first["id"] as? String, "switch_page back to \(first["id"] ?? "?") didn't take")
     let pages = mcp.callJSON("list_pages") as? [JSON] ?? []
     expect(pages.count == 2, "list_pages should list 2 pages, got \(pages.count)")
+}
+
+/// A board with a known element on the current page (asked of its live page) and one on the second page (loaded
+/// off screen) resolve to the element; the pointer then goes stale once the element, and then the board, are gone.
+func checkPointers(_ mcp: MCPClient) {
+    let html = #"<section class="pricing"><p>Plans</p><a class="cta" href="/buy">Buy now</a></section>"#
+    let cta = #"<a class="cta" href="/buy">Buy now</a>"#
+    for (name, page) in [("Pointer", nil), ("Pointer elsewhere", "Second")] as [(String, String?)] {
+        var arguments: JSON = ["name": name, "width": boardSize.width, "height": boardSize.height, "html": html]
+        arguments["page"] = page
+        guard let id = (mcp.callJSON("create_artboard", arguments) as? JSON)?["id"] as? String else { fail("create_artboard \(name) failed") }
+        let element = mcp.callJSON("get_element", ["pointer": "canvas:\(id) > section.pricing > a.cta"]) as? JSON ?? [:]
+        let box = element["box"] as? JSON ?? [:]
+        expect(element["outerHTML"] as? String == cta, "get_element on \(id) returned \(element)")
+        expect(element["selector"] as? String == "body > section:nth-of-type(1) > a:nth-of-type(1)", "get_element selector: \(element["selector"] ?? "missing")")
+        expect((box["width"] as? Double ?? 0) > 0 && (element["styles"] as? JSON)?["font-size"] != nil, "get_element box/styles: \(element)")
+        expect((mcp.callJSON("get_element", ["pointer": "canvas:\(id)"]) as? JSON)?["name"] as? String == name, "get_element canvas:\(id) isn't the board")
+        expectStale(mcp, "canvas:\(id) > section.pricing > a.cta", after: { mcp.callText("write_artboard", ["id": id, "html": "<section class=\"pricing\"></section>"]) }, reason: "no element")
+        expectStale(mcp, "canvas:\(id)", after: { mcp.callText("delete_artboard", ["id": id]) }, reason: "no artboard")
+        detail("\(id): resolved, then stale for both reasons")
+    }
+}
+
+func expectStale(_ mcp: MCPClient, _ pointer: String, after change: () -> Void, reason: String) {
+    change()
+    let message = mcp.callError("get_element", ["pointer": pointer])
+    expect(message.contains("stale") && message.contains(reason), "get_element \(pointer) should be stale (\(reason)): \(message)")
 }
 
 func currentPage(_ mcp: MCPClient) -> JSON {
@@ -374,6 +402,14 @@ final class MCPClient {
             fail("tool \(tool) failed: " + content.compactMap { $0["text"] as? String }.joined())
         }
         return content
+    }
+
+    /// Calls a tool that must fail and returns its error text.
+    func callError(_ tool: String, _ arguments: JSON = [:]) -> String {
+        let result = request("tools/call", ["name": tool, "arguments": arguments])
+        let text = (result["content"] as? [JSON] ?? []).compactMap { $0["text"] as? String }.joined()
+        expect(result["isError"] as? Bool == true, "tool \(tool) should have failed: \(text)")
+        return text
     }
 
     @discardableResult

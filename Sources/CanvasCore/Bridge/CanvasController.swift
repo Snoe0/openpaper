@@ -19,6 +19,9 @@ public protocol CanvasController {
     var selection: CanvasSelection { get }
     /// A PNG of the artboard as currently rendered.
     func screenshot(artboardID: String) async throws -> Data
+    /// The first element `selector` matches on the artboard's page, or nil when none does; throws
+    /// `PageElementError.invalidSelector` for a malformed selector.
+    func element(onArtboard artboardID: String, matching selector: String) async throws -> PageElement?
     /// Console messages captured from one artboard, or from all of them, oldest first.
     func consoleLogs(artboardID: String?) -> [ConsoleEntry]
     /// Scrolls and zooms the canvas to the artboard.
@@ -48,6 +51,55 @@ public struct SelectedElement: Codable, Equatable, Sendable {
         self.selector = selector
         self.outerHTML = outerHTML
         self.rect = rect
+    }
+}
+
+/// An element on an artboard's page, as the page's runtime describes it (`Canvas.elementAt`, `Canvas.describe`).
+public struct PageElement: Codable, Equatable, Sendable {
+    /// A unique path to the element, as inspect mode builds it.
+    public var selector: String
+    public var outerHTML: String
+    /// In CSS pixels, relative to the page's viewport (the board's top-left corner while the page isn't scrolled).
+    public var box: ElementRect
+    /// Key computed styles by CSS property, e.g. `"font-size": "16px"`.
+    public var styles: [String: String]
+    /// How many elements the selector matched (`Canvas.describe` only); this one is the first.
+    public var matches: Int?
+    /// True when `outerHTML` was cut short (`Canvas.describe` keeps at most 20000 characters).
+    public var truncated: Bool?
+
+    public init(selector: String, outerHTML: String, box: ElementRect, styles: [String: String], matches: Int? = nil, truncated: Bool? = nil) {
+        self.selector = selector
+        self.outerHTML = outerHTML
+        self.box = box
+        self.styles = styles
+        self.matches = matches
+        self.truncated = truncated
+    }
+
+    /// What the runtime returned (a dictionary from WebKit): the element, or nil (JS null) for none. Throws
+    /// `.invalidSelector` for the runtime's malformed-selector answer, and `.unreadable` for anything else.
+    public static func decode(runtimeValue: Any?) throws(PageElementError) -> PageElement? {
+        guard let value = runtimeValue, !(value is NSNull) else { return nil }
+        if (value as? [String: Any])?["invalidSelector"] as? Bool == true { throw .invalidSelector }
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value),
+              let element = try? JSONDecoder().decode(PageElement.self, from: data) else { throw .unreadable }
+        return element
+    }
+}
+
+public enum PageElementError: Error, Equatable {
+    case invalidSelector
+    case unreadable
+}
+
+extension PageElementError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .invalidSelector: "The selector isn't a valid CSS selector."
+        case .unreadable: "The page's answer couldn't be read."
+        }
     }
 }
 

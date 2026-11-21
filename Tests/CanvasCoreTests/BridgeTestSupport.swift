@@ -9,8 +9,13 @@ final class MockCanvasController: CanvasController {
     var selection = CanvasSelection()
     var console: [ConsoleEntry] = []
     var screenshotPNG = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+    /// What each board's page matches, by artboard id, then selector.
+    var elements: [String: [String: PageElement]] = [:]
+    /// Selectors every page rejects as malformed.
+    var invalidSelectors: Set<String> = []
     private(set) var focusedArtboards: [String] = []
     private(set) var screenshotRequests: [String] = []
+    private(set) var elementRequests: [(artboardID: String, selector: String)] = []
 
     init(document: CanvasDocument? = nil) {
         activeDocument = document
@@ -31,6 +36,12 @@ final class MockCanvasController: CanvasController {
     func screenshot(artboardID: String) async throws -> Data {
         screenshotRequests.append(artboardID)
         return screenshotPNG
+    }
+
+    func element(onArtboard artboardID: String, matching selector: String) async throws -> PageElement? {
+        elementRequests.append((artboardID, selector))
+        if invalidSelectors.contains(selector) { throw PageElementError.invalidSelector }
+        return elements[artboardID]?[selector]
     }
 
     func consoleLogs(artboardID: String?) -> [ConsoleEntry] {

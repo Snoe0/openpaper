@@ -1,7 +1,8 @@
 import AppKit
 import CanvasCore
 
-/// Board titles and selection outlines, drawn in screen space so they keep their size at any zoom.
+/// Board titles, selection outlines and the outline of the element a menu is open for, drawn in screen
+/// space so they keep their size at any zoom.
 /// Never takes the pointer.
 @MainActor
 final class CanvasOverlayView: NSView {
@@ -13,6 +14,7 @@ final class CanvasOverlayView: NSView {
     private var boards: [(board: CanvasBoard, rect: CGRect)] = []
     private var selectedIDs: Set<String> = []
     private var hoveredID: String?
+    private var elementOutline: CGRect?
 
     /// The strip above a board (screen rect) that holds its title and takes title drags; nil when
     /// the board is too narrow on screen for a title, so nothing invisible can be grabbed.
@@ -25,11 +27,12 @@ final class CanvasOverlayView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    /// `boards` pairs each board with its on-screen rect.
-    func update(boards: [(CanvasBoard, CGRect)], selectedIDs: Set<String>, hoveredID: String?) {
+    /// `boards` pairs each board with its on-screen rect; `elementOutline` is an element's on-screen rect.
+    func update(boards: [(CanvasBoard, CGRect)], selectedIDs: Set<String>, hoveredID: String?, elementOutline: CGRect?) {
         self.boards = boards.map { (board: $0.0, rect: $0.1) }
         self.selectedIDs = selectedIDs
         self.hoveredID = hoveredID
+        self.elementOutline = elementOutline
         needsDisplay = true
     }
 
@@ -39,6 +42,14 @@ final class CanvasOverlayView: NSView {
             drawTitle(board.name, above: rect, selected: selectedIDs.contains(board.id))
             drawOutline(around: rect, for: board.id)
         }
+        if let elementOutline { drawElementOutline(elementOutline) }
+    }
+
+    /// Like inspect mode's highlight: a thin blue line and a faint blue fill.
+    private func drawElementOutline(_ rect: CGRect) {
+        NSColor.systemBlue.withAlphaComponent(0.12).setFill()
+        rect.fill()
+        stroke(rect, width: 1.5, color: .systemBlue)
     }
 
     private func drawTitle(_ name: String, above rect: CGRect, selected: Bool) {

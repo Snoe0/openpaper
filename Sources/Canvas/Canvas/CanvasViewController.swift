@@ -32,6 +32,10 @@ final class CanvasViewController: NSViewController {
     var liveBoards: [String: LiveBoard] = [:]
     /// The board in inspect mode, if any.
     var inspectedID: String?
+    /// The right-click whose pointer menu is being prepared or is open, if any.
+    var pointing: PointerRequest?
+    /// Its board, kept live.
+    var pointedID: String? { pointing?.boardID }
     /// Boards the user paused with the hover bar.
     var userPaused: Set<String> = []
     var consoleLog = ConsoleLog()
@@ -110,9 +114,9 @@ final class CanvasViewController: NSViewController {
         consoleLog.entries(artboardID: artboardID)
     }
 
-    /// A crisp PNG of the board at its native size, showing the document as it is now: from the live
-    /// page once its pending reloads and patches land, else the cached snapshot for the current
-    /// content, else an off-screen render.
+    /// A crisp PNG of the board, one pixel per CSS pixel (a huge board comes out scaled down, see
+    /// `SnapshotSize`), showing the document as it is now: from the live page once its pending reloads
+    /// and patches land, else the cached snapshot for the current content, else an off-screen render.
     func snapshotPNG(artboardID id: String) async throws -> Data {
         guard let document, let renderer else { throw DocumentError.notFound(id) }
         let board = try document.artboard(id: id)

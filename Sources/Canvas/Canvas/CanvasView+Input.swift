@@ -2,7 +2,7 @@ import AppKit
 import CanvasCore
 
 /// Pointer and keyboard: scroll or space-drag pans, pinch or ⌘-scroll zooms, clicks select,
-/// title drags move boards, and ⇧1 / ⇧2 / ⇧0 / Esc.
+/// title drags move boards, right-clicks ask for a board's menu, and ⇧1 / ⇧2 / ⇧0 / Esc.
 extension CanvasView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -29,6 +29,7 @@ extension CanvasView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control) { return rightMouseDown(with: event) }
         window?.makeFirstResponder(self)
         stopAnimation()
         let point = location(of: event)
@@ -45,6 +46,13 @@ extension CanvasView {
         if let hit, hit.onTitle, tool == .select, let board = board(hit.id) {
             drag = .move(id: hit.id, grab: viewport.canvasPoint(fromScreen: point), startOrigin: board.rect.origin, moved: false)
         }
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        stopAnimation()
+        let point = location(of: event)
+        guard let hit = boardHit(at: point), let board = board(hit.id) else { return }
+        delegate?.canvasView(self, didRequestMenuForBoard: hit.id, at: boardPoint(point, on: board), onTitle: hit.onTitle)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -127,6 +135,12 @@ extension CanvasView {
             if CanvasOverlayView.titleRow(above: rect)?.contains(point) == true { return (board.id, true) }
         }
         return nil
+    }
+
+    /// `point` (screen) in the board's CSS pixels: canvas points from the board's top-left corner.
+    private func boardPoint(_ point: CGPoint, on board: CanvasBoard) -> CGPoint {
+        let canvasPoint = viewport.canvasPoint(fromScreen: point)
+        return CGPoint(x: canvasPoint.x - board.rect.minX, y: canvasPoint.y - board.rect.minY)
     }
 
     private func location(of event: NSEvent) -> CGPoint {

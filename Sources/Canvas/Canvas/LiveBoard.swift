@@ -103,16 +103,11 @@ final class LiveBoard: NSObject {
     /// smaller for a huge board (`SnapshotSize`). Draw it at the board's size, not its pixel size.
     /// Throws `SnapshotError.timedOut` if WebKit doesn't answer within `snapshotTimeout`.
     func pngSnapshot(nativeSize: CGSize) async throws -> Data {
-        let size = SnapshotSize(nativeSize: nativeSize, backingScale: backingScale)
+        let size = SnapshotSize(nativeSize: nativeSize, backingScale: webView.screenScale)
         let configuration = size.configuration(of: webView.bounds)
         return try await withTimeout(Self.snapshotTimeout) { [webView] in
             try PNGEncoder.png(of: try await webView.takeSnapshot(configuration: configuration), pixelSize: size.pixelSize)
         }
-    }
-
-    /// The scale WebKit draws snapshots at: its window's screen's.
-    private var backingScale: CGFloat {
-        webView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
     }
 
     /// The page as it looks now, or nil if it hasn't loaded, isn't in a window (WebKit wouldn't paint

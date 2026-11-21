@@ -18,6 +18,11 @@ extension Workspace: CanvasController {
         return try await canvas.snapshotPNG(artboardID: artboardID)
     }
 
+    func element(onArtboard artboardID: String, matching selector: String) async throws -> PageElement? {
+        guard let canvas = activeCanvas else { throw WorkspaceError.noDocument }
+        return try await canvas.element(onArtboard: artboardID, matching: selector)
+    }
+
     func consoleLogs(artboardID: String?) -> [ConsoleEntry] {
         activeCanvas?.consoleLogs(artboardID: artboardID) ?? []
     }

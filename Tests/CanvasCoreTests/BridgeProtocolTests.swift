@@ -7,7 +7,7 @@ final class BridgeProtocolTests: XCTestCase {
         "list_pages", "create_page", "switch_page",
         "create_artboard", "read_artboard", "write_artboard", "edit_artboard", "update_artboard",
         "delete_artboard", "duplicate_artboard",
-        "get_selection", "screenshot", "get_console", "focus_artboard",
+        "get_selection", "screenshot", "get_element", "get_console", "focus_artboard",
         "list_components", "read_component", "write_component", "delete_component",
         "get_tokens", "set_tokens", "set_mode",
     ]

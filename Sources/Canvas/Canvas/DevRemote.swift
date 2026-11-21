@@ -5,15 +5,19 @@ import CanvasCore
 /// Debug-only dev hook for driving the canvas without Accessibility or Screen Recording permissions. With
 /// `CANVAS_REMOTE=/path/prefix` set, `kill -USR1 <pid>` runs the commands in `<prefix>.cmd`, one per line,
 /// through real window events:
-///   capture | wait <ms> | key <keyCode> [shift] | click <x> <y> [shift] [double] | move <x> <y>
+///   wait <ms> | key <keyCode> [shift] | click <x> <y> [shift] [double] | move <x> <y>
 ///   drag <x1> <y1> <x2> <y2> | scroll <dx> <dy> [cmd] | tool select|hand|inspect | state | snapshot <artboard-id>
 ///   write <artboard-id> <html…> | token <name> <value> | miniaturize | deminiaturize
-/// Points are in window content coordinates, top-left origin. `capture` writes `<prefix>-<n>.png`;
-/// `state` and `snapshot` append to `<prefix>.out` and write `<prefix>-<id>.png`.
+///   rightclick <x> <y> [ctrl] | menukey <keyCode> | zoom <scale> | pasteboard | render
+/// Points are in window content coordinates, top-left origin. `state`, `snapshot` and `pasteboard` append to
+/// `<prefix>.out`, and `snapshot` writes `<prefix>-<id>.png`. `render` draws the window's views into
+/// `<prefix>-<n>.png` (no screen capture, so no permission; web pages and menus don't show in it). `state`
+/// includes the window number and frame, for `screencapture -l <window>` or `-R x,y,w,h` from the shell. Commands keep running while a menu is open; `menukey` types into it. Set
+/// `CANVAS_PASTEBOARD` too, so Copy and `pasteboard` use a private pasteboard, not the user's clipboard.
 @MainActor
 enum DevRemote {
     private static var source: (any DispatchSourceSignal)?
-    private static var captures = 0
+    private static var renders = 0
 
     static func install(for window: NSWindow, canvas: CanvasViewController) {
         guard let prefix = ProcessInfo.processInfo.environment["CANVAS_REMOTE"] else { return }
@@ -37,9 +41,13 @@ enum DevRemote {
             let numbers = words.dropFirst().compactMap(Double.init).map { CGFloat($0) }
             let flags: NSEvent.ModifierFlags = words.contains("shift") ? .shift : words.contains("cmd") ? .command : []
             switch command {
-            case "capture":
-                captures += 1
-                capture(window, to: "\(prefix)-\(captures).png")
+            case "rightclick": rightClick(at: point(numbers[0], numbers[1], in: window), control: words.contains("ctrl"), in: window)
+            case "menukey": menuKey(UInt16(numbers[0]))
+            case "zoom": canvas.setZoom(numbers[0])
+            case "render":
+                renders += 1
+                render(window, to: "\(prefix)-\(renders).png")
+            case "pasteboard": append("pasteboard=\(Clipboard.pasteboard.string(forType: .string) ?? "nil")", to: prefix + ".out")
             case "wait": try? await Task.sleep(for: .milliseconds(Int(numbers.first ?? 100)))
             case "key": key(UInt16(numbers[0]), flags: flags, in: window)
             case "click": click(at: point(numbers[0], numbers[1], in: window), flags: flags, double: words.contains("double"), in: window)
@@ -52,7 +60,7 @@ enum DevRemote {
             case "miniaturize": window.miniaturize(nil)
             case "deminiaturize": window.deminiaturize(nil)
             case "tool": canvas.setTool(["hand": .hand, "inspect": .inspect][words[1]] ?? .select)
-            case "state": append(state(of: canvas), to: prefix + ".out")
+            case "state": append(state(of: canvas, in: window), to: prefix + ".out")
             case "snapshot":
                 let start = ContinuousClock.now
                 let png = try? await canvas.snapshotPNG(artboardID: words[1])
@@ -63,13 +71,14 @@ enum DevRemote {
         }
     }
 
-    private static func state(of canvas: CanvasViewController) -> String {
+    private static func state(of canvas: CanvasViewController, in window: NSWindow) -> String {
         let element = canvas.selection.element.map { "\($0.artboardID) \($0.selector) \($0.rect)" } ?? "none"
         let console = canvas.consoleLogs(artboardID: nil).suffix(3).map { "\($0.artboardID):\($0.level):\($0.message)" }
         return """
+        window=\(window.windowNumber) frame=\(screenCaptureRect(of: window))
         doc=\(canvas.document?.url.path ?? "none")
         zoom=\(canvas.zoom) tool=\(canvas.tool) selected=\(canvas.selection.artboardIDs) element=\(element)
-        live=\(canvas.pool.live) paused=\(canvas.pool.paused) crashed=\(canvas.crashedBoards.sorted()) inspected=\(canvas.inspectedID ?? "none")
+        live=\(canvas.pool.live) paused=\(canvas.pool.paused) crashed=\(canvas.crashedBoards.sorted()) inspected=\(canvas.inspectedID ?? "none") pointed=\(canvas.pointedID ?? "none")
         console(last 3 of \(canvas.consoleLogs(artboardID: nil).count))=\(console)
         """
     }
@@ -97,6 +106,23 @@ enum DevRemote {
             // Queue the release first: a button tracks the mouse in its own loop until it sees it.
             mouseEvent(.leftMouseUp, at: point, flags: flags, clickCount: count, in: window).map { NSApp.postEvent($0, atStart: false) }
             mouse(.leftMouseDown, at: point, flags: flags, clickCount: count, in: window)
+        }
+    }
+
+    /// Only the press: the menu it opens stays open until a `menukey` (or a click) closes it.
+    private static func rightClick(at point: CGPoint, control: Bool, in window: NSWindow) {
+        control ? mouse(.leftMouseDown, at: point, flags: .control, in: window) : mouse(.rightMouseDown, at: point, in: window)
+    }
+
+    /// Queued, so an open menu's own event loop reads it: 125 down, 126 up, 36 return, 53 escape.
+    private static func menuKey(_ code: UInt16) {
+        let characters = [125: "\u{F701}", 126: "\u{F700}", 36: "\r", 53: "\u{1b}"][Int(code)] ?? ""
+        for type in [NSEvent.EventType.keyDown, .keyUp] {
+            let event = NSEvent.keyEvent(
+                with: type, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: 0, context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code
+            )
+            event.map { NSApp.postEvent($0, atStart: false) }
         }
     }
 
@@ -134,16 +160,18 @@ enum DevRemote {
 
     // MARK: - Output
 
-    private typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+    /// The window's frame as `screencapture -R` takes it: x,y,w,h in points from the top-left of the main screen.
+    private static func screenCaptureRect(of window: NSWindow) -> String {
+        let screenHeight = NSScreen.screens.first?.frame.height ?? 0
+        let frame = window.frame
+        return [frame.minX, screenHeight - frame.maxY, frame.width, frame.height].map { String(Int($0.rounded())) }.joined(separator: ",")
+    }
 
-    /// `CGWindowListCreateImage` is hidden from the macOS 15 SDK but still captures one's own windows.
-    private static func capture(_ window: NSWindow, to path: String) {
-        guard let symbol = dlsym(dlopen(nil, RTLD_NOW), "CGWindowListCreateImage") else { return }
-        let create = unsafeBitCast(symbol, to: CreateImage.self)
-        let includingWindow: UInt32 = 1 << 3, boundsIgnoreFraming: UInt32 = 1 << 0, bestResolution: UInt32 = 1 << 3
-        guard let image = create(.null, includingWindow, UInt32(window.windowNumber), boundsIgnoreFraming | bestResolution)?.takeRetainedValue(),
-              let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else { return }
-        try? png.write(to: URL(fileURLWithPath: path))
+    /// The window's views drawn in process (`cacheDisplay`), which needs no screen-recording permission.
+    private static func render(_ window: NSWindow, to path: String) {
+        guard let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        try? bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
 
     private static func append(_ text: String, to path: String) {

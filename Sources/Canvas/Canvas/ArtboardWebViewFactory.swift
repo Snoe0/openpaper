@@ -32,6 +32,19 @@ enum ArtboardWebViewFactory {
 /// clicks and drags. Clicks never reach it through hit-testing; this also stops hover tracking.
 final class ArtboardWebView: WKWebView {
     var acceptsMouse = false
+    /// Canvas boards set this: a right-click or control-click on a page taking the pointer (inspect mode)
+    /// opens the canvas's pointer menu instead of WebKit's context menu.
+    var onContextClick: ((NSEvent) -> Void)?
+
+    override func rightMouseDown(with event: NSEvent) {
+        guard let onContextClick else { return super.rightMouseDown(with: event) }
+        onContextClick(event)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let onContextClick, event.modifierFlags.contains(.control) else { return super.mouseDown(with: event) }
+        onContextClick(event)
+    }
 
     override func mouseMoved(with event: NSEvent) {
         if acceptsMouse { super.mouseMoved(with: event) }

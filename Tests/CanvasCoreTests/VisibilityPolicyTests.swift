@@ -93,7 +93,7 @@ final class VisibilityPolicyTests: XCTestCase {
 
     /// The inspected board stays live: it comes first and counts toward the budget and capacity.
     func testAKeptBoardIsLiveFirstAndCountsTowardTheBudget() {
-        let live = VisibilityPolicy().liveBoards(websiteBoards(), viewport: Viewport(origin: .zero, scale: 0.3), screenSize: screen, keeping: "r0c0")
+        let live = VisibilityPolicy().liveBoards(websiteBoards(), viewport: Viewport(origin: .zero, scale: 0.3), screenSize: screen, keeping: ["r0c0"])
 
         XCTAssertEqual(live.first, "r0c0")
         XCTAssertEqual(live.count, 5)
@@ -102,15 +102,15 @@ final class VisibilityPolicyTests: XCTestCase {
     func testAKeptBoardIsLiveBelowTheScaleThresholdAndOutOfView() {
         let boards = [board("a", x: 0, y: 0), board("far", x: 90_000, y: 0)]
 
-        XCTAssertEqual(policy.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: "far"), ["far"])
-        XCTAssertEqual(policy.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: "gone"), [])
+        XCTAssertEqual(policy.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: ["far"]), ["far"])
+        XCTAssertEqual(policy.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: ["gone"]), [])
     }
 
     func testAKeptBoardCountsTowardCapacity() {
         let two = VisibilityPolicy(minLiveScale: 0.3, margin: 0, capacity: 2)
         let boards = [board("a", x: 0, y: 0), board("b", x: 450, y: 0), board("far", x: 90_000, y: 0)]
 
-        XCTAssertEqual(two.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 1), screenSize: screen, keeping: "far").count, 2)
+        XCTAssertEqual(two.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 1), screenSize: screen, keeping: ["far"]).count, 2)
     }
 
     /// A board too big for what's left of the budget is skipped, and a smaller, farther one still fits.
@@ -129,7 +129,19 @@ final class VisibilityPolicyTests: XCTestCase {
         let budget = VisibilityPolicy(liveAreaBudget: 1_000_000)
         let boards = [board("near", x: 700, y: 500, width: 600, height: 600), board("huge", x: 90_000, y: 0, width: 1000, height: 1100)]
 
-        XCTAssertEqual(budget.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.5), screenSize: screen, keeping: "huge"), ["huge"])
+        XCTAssertEqual(budget.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.5), screenSize: screen, keeping: ["huge"]), ["huge"])
+    }
+
+    /// A right-clicked board and the inspected one both stay live, in that order, whatever their size or place.
+    func testSeveralKeptBoardsAreAllLiveFirstEvenOverTheBudget() {
+        let budget = VisibilityPolicy(liveAreaBudget: 1_000_000)
+        let boards = [board("near", x: 700, y: 500, width: 600, height: 600),
+                      board("pointed", x: 90_000, y: 0, width: 1000, height: 1100),
+                      board("inspected", x: -90_000, y: 0, width: 1000, height: 1100)]
+
+        XCTAssertEqual(budget.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.5), screenSize: screen, keeping: ["pointed", "inspected"]), ["pointed", "inspected"])
+        XCTAssertEqual(budget.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: ["pointed", "inspected"]), ["pointed", "inspected"])
+        XCTAssertEqual(budget.liveBoards(boards, viewport: Viewport(origin: .zero, scale: 0.2), screenSize: screen, keeping: ["inspected", "inspected"]), ["inspected"])
     }
 
     /// Six 1280×800 boards (1.02 MP each) in 2 columns and 3 rows, all in view at 30%.

@@ -289,7 +289,7 @@ final class WebViewPageFitTests: XCTestCase {
         }
 
         /// The page as the window shows it, scaled to the board's width (`CGWindowListCreateImage` is
-        /// hidden from the SDK but still captures one's own windows; see `DevRemote`).
+        /// hidden from the SDK but still captures one's own windows).
         /// Skips the test where the system can't capture windows.
         func windowImage() throws -> Bitmap {
             typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?

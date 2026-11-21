@@ -667,6 +667,56 @@
 
   const inspect = (on) => (on ? startInspecting() : stopInspecting());
 
+  // MARK: - Pointers
+
+  // What a right-click on the canvas and the `get_element` tool ask about an element. Coordinates and boxes are
+  // in the page's CSS pixels; the page itself (<html>, <body>) is not an element here.
+  const KEY_STYLES = [
+    "display", "position", "width", "height", "margin", "padding", "color", "background-color",
+    "font-family", "font-size", "font-weight", "line-height",
+  ];
+
+  const keyStyles = (element) => {
+    const computed = getComputedStyle(element);
+    return Object.fromEntries(KEY_STYLES.map((property) => [property, computed.getPropertyValue(property)]));
+  };
+
+  const MAX_DESCRIBED_HTML_LENGTH = 20000;
+
+  const elementInfo = (element) => ({
+    selector: selector(element),
+    outerHTML: element.outerHTML,
+    box: rectOf(element),
+    styles: keyStyles(element),
+  });
+
+  const isPage = (element) => !element || element === document.documentElement || element === document.body;
+
+  // Every match, or null for a malformed selector.
+  const queryAll = (selectorText) => {
+    try {
+      return document.querySelectorAll(selectorText);
+    } catch {
+      return null;
+    }
+  };
+
+  // The whole element: a right-click copies its full HTML.
+  const elementAt = (x, y) => {
+    const element = sourceElement(document.elementFromPoint(x, y));
+    return isPage(element) ? null : elementInfo(element);
+  };
+
+  // The first match, with the match count and its HTML capped for an agent; null for none.
+  const describeSelector = (selectorText) => {
+    const matches = queryAll(selectorText);
+    if (!matches) return { invalidSelector: true };
+    if (matches.length === 0) return null;
+    const info = { ...elementInfo(matches[0]), matches: matches.length };
+    if (info.outerHTML.length <= MAX_DESCRIBED_HTML_LENGTH) return info;
+    return { ...info, outerHTML: truncate(info.outerHTML, MAX_DESCRIBED_HTML_LENGTH), truncated: true };
+  };
+
   // MARK: - Ready
 
   const announceReady = () => post({ type: "ready" });
@@ -697,6 +747,8 @@
     },
     inspect,
     selector,
+    elementAt,
+    describe: describeSelector,
     logs,
   });
 

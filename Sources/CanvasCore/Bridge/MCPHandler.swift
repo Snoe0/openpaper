@@ -12,6 +12,13 @@ final class MCPHandler {
     Tools that take `page` accept a page id or name and default to the current page. You can also edit the document's \
     files directly: get_document returns its path. After a visual change, take a screenshot to check the result.
 
+    Pointers: the user can right-click anything on the canvas, copy a pointer to it and paste it in the chat. \
+    `canvas:<artboard id>` names an artboard; `canvas:<artboard id> > <CSS selector>` names an element on that \
+    artboard's page. Resolve a pointer with get_element (HTML, box and computed styles, or the artboard), then edit \
+    the artboard's HTML. A stale pointer (its artboard was deleted, or nothing matches the selector any more) says why. \
+    Selectors are positional (nth-of-type), so an edit that inserts siblings can make one point elsewhere: pointers are \
+    for short-term use, so check the returned HTML is what the user meant.
+
     """ + DocumentGuide.markdown
 
     private let controller: any CanvasController
