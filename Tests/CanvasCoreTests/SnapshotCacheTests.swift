@@ -27,10 +27,15 @@ final class SnapshotCacheTests: XCTestCase {
         XCTAssertEqual(a.deletingLastPathComponent().path, root.path)
     }
 
-    func testTheDefaultRootIsTheUserCachesCanvasFolder() {
+    func testTheRootIsASnapshotsFolderInTheBundlesOwnCaches() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
 
-        XCTAssertEqual(SnapshotCache.defaultRoot.path, caches.appendingPathComponent("Canvas").path)
+        XCTAssertEqual(SnapshotCache.root(forBundleID: "local.canvas.e2e").path, caches.appendingPathComponent("local.canvas.e2e/Snapshots").path)
+        XCTAssertEqual(SnapshotCache.root(forBundleID: nil).path, caches.appendingPathComponent("Canvas/Snapshots").path)
+    }
+
+    func testTheDefaultRootFollowsTheMainBundle() {
+        XCTAssertEqual(SnapshotCache.defaultRoot, SnapshotCache.root(forBundleID: Bundle.main.bundleIdentifier))
     }
 
     func testStoredSnapshotsAreReturnedForTheSameKey() throws {

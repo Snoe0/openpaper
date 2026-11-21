@@ -14,7 +14,7 @@ final class AppConnection {
         static func fromEnvironment() -> Settings {
             let environment = ProcessInfo.processInfo.environment
             return Settings(
-                bridgeFile: environment["CANVAS_BRIDGE_FILE"].map { URL(fileURLWithPath: $0) } ?? defaultBridgeFile,
+                bridgeFile: environment["CANVAS_BRIDGE_FILE"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) } ?? defaultBridgeFile,
                 mayLaunch: environment["CANVAS_NO_LAUNCH"] == nil,
                 appBundleID: environment["CANVAS_APP_BUNDLE_ID"] ?? "local.canvas.app"
             )

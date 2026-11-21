@@ -29,9 +29,14 @@ public struct SnapshotKey: Hashable, Sendable {
 public final class SnapshotCache {
     private let directory: URL
 
-    /// `~/Library/Caches/Canvas`.
-    public static var defaultRoot: URL {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("Canvas", isDirectory: true)
+    /// The running app's own snapshot folder, so a copy under another bundle id (the end-to-end test) keeps its own.
+    public static var defaultRoot: URL { root(forBundleID: Bundle.main.bundleIdentifier) }
+
+    /// `~/Library/Caches/<bundle id>/Snapshots`, or `~/Library/Caches/Canvas/Snapshots` without a bundle id.
+    public static func root(forBundleID bundleID: String?) -> URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(bundleID ?? "Canvas", isDirectory: true)
+            .appendingPathComponent("Snapshots", isDirectory: true)
     }
 
     /// `<root>/<doc-hash>`, where the hash is of the document's path.

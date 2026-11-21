@@ -28,8 +28,15 @@ final class AgentConnection {
 
     /// Creates the bridge for `controller` and starts it; a failure shows in the MCP panel.
     func startBridge(for controller: any CanvasController) async {
-        bridge = BridgeServer(controller: controller)
+        bridge = BridgeServer(controller: controller, bridgeFileURL: Self.bridgeFileURL)
         await start()
+    }
+
+    /// `CANVAS_BRIDGE_FILE` moves `bridge.json` (the end-to-end test uses a temp file); canvas-mcp reads the same variable.
+    /// Empty counts as unset.
+    private static var bridgeFileURL: URL {
+        ProcessInfo.processInfo.environment["CANVAS_BRIDGE_FILE"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
+            ?? BridgeServer.defaultBridgeFileURL
     }
 
     func restartBridge() async {
