@@ -16,13 +16,11 @@ extension CanvasViewController {
         refreshHoverBar()
     }
 
-    /// The policy's choice, plus the inspected board, which stays live whatever its size. Boards
-    /// whose page keeps crashing are left out.
+    /// The policy's choice, with the inspected board kept live whatever its size (it counts toward the
+    /// capacity and area budget). Boards whose page keeps crashing are left out.
     private func desiredLiveBoards() -> [String] {
         let frames = canvasView.boards.filter { !crashedBoards.contains($0.id) }.map { BoardFrame(id: $0.id, rect: $0.rect) }
-        let ids = policy.liveBoards(frames, viewport: canvasView.viewport, screenSize: canvasView.bounds.size)
-        guard let inspectedID, !ids.contains(inspectedID), frames.contains(where: { $0.id == inspectedID }) else { return ids }
-        return [inspectedID] + ids.prefix(policy.capacity - 1)
+        return policy.liveBoards(frames, viewport: canvasView.viewport, screenSize: canvasView.bounds.size, keeping: inspectedID)
     }
 
     /// Failed off-screen renders get another go, except for boards whose page keeps crashing: those
@@ -102,7 +100,7 @@ extension CanvasViewController {
 
     private func attach(_ live: LiveBoard) {
         guard let board = canvasView.board(live.artboardID) else { return }
-        canvasView.boardView(live.artboardID)?.attach(live, size: board.rect.size, scale: canvasView.layoutScale)
+        canvasView.boardView(live.artboardID)?.attach(live, size: board.rect.size)
     }
 
     private func detach(_ live: LiveBoard) {

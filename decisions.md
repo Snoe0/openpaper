@@ -10,3 +10,4 @@
 - **Animations:** any CSS/JS in the HTML, plus play/pause/restart controls and auto-pause. (2026-11-20)
 - **Extra UI scope:** pages, document tabs (+ Dashboard), Connect agent button. No per-page canvas background. (2026-11-20)
 - **Look:** dark layout in the style of Paper, with our own styling. (2026-11-20)
+- **Live boards below 100%:** limit by a pixel budget (~6 MP total board area); the rest show snapshots. (2026-11-20)

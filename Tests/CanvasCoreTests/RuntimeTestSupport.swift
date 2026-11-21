@@ -101,14 +101,9 @@ final class RuntimePage {
         try await navigation.waitForFinish()
     }
 
-    /// WebKit only ticks animation frames for visible pages. The test runner's windows report as occluded,
-    /// so host the view in an off-screen window and switch off occlusion detection (WebKit SPI).
+    /// Hosts the view in an off-screen window that WebKit treats as visible.
     private static func visibleWindow(showing webView: WKWebView) -> NSWindow {
-        let disableOcclusion = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
-        if webView.responds(to: disableOcclusion) {
-            // KVC resolves `_set<Key>:` and unboxes the Bool for the BOOL parameter.
-            webView.setValue(false, forKey: "windowOcclusionDetectionEnabled")
-        }
+        disableOcclusionDetection(webView)
         let window = NSWindow(
             contentRect: webView.frame.offsetBy(dx: -20_000, dy: -20_000),
             styleMask: [.borderless],
@@ -124,6 +119,15 @@ final class RuntimePage {
     deinit {
         MainActor.assumeIsolated { window.close() }
     }
+}
+
+/// WebKit only ticks animation frames and paints for visible pages, and the test runner's windows
+/// report as occluded, so switch off occlusion detection (WebKit SPI, when there is one).
+@MainActor
+func disableOcclusionDetection(_ webView: WKWebView) {
+    guard webView.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) else { return }
+    // KVC resolves `_set<Key>:` and unboxes the Bool for the BOOL parameter.
+    webView.setValue(false, forKey: "windowOcclusionDetectionEnabled")
 }
 
 enum RuntimeTestError: Error {

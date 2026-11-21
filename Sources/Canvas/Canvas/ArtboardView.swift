@@ -2,13 +2,15 @@ import AppKit
 import CanvasCore
 import ImageIO
 
-/// One artboard on the canvas: its last snapshot, with the live web view on top while it has one.
-/// Its frame is the board's on-screen rect; it only takes the pointer for a page being inspected.
+/// One artboard on the canvas: its last snapshot, with the live web view on top while it has one, fitted
+/// by a `PageHost`. Its frame is the board's on-screen rect; it only takes the pointer for a page being
+/// inspected.
 @MainActor
 final class ArtboardView: NSView {
     let artboardID: String
     private(set) var liveBoard: LiveBoard?
     private let snapshotLayer = CALayer()
+    private let pageHost = PageHost()
     /// Counts snapshots asked for, so a slow decode never replaces a newer snapshot.
     private var snapshotGeneration = 0
 
@@ -17,12 +19,13 @@ final class ArtboardView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor(white: 0.17, alpha: 1).cgColor
-        // A live page can overhang its board by under a point (`PageFit` rounds its height up).
+        // At 100% and up a live page can overhang its board by under a point (`PageFit` rounds its height up).
         layer?.masksToBounds = true
         snapshotLayer.contentsGravity = .resize
         snapshotLayer.minificationFilter = .trilinear
         snapshotLayer.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull()]
         layer?.addSublayer(snapshotLayer)
+        addSubview(pageHost)
     }
 
     @available(*, unavailable)
@@ -37,13 +40,13 @@ final class ArtboardView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard let webView = liveBoard?.webView, webView.acceptsMouse else { return nil }
-        return webView.hitTest(convert(point, from: superview))
+        return webView.hitTest(pageHost.convert(point, from: superview))
     }
 
-    /// Puts the board at `frame` (already snapped to pixels) and lays a live page out at `scale`.
-    func place(at frame: CGRect, boardSize: CGSize, scale: CGFloat) {
+    /// Puts the board at `frame` (already snapped to pixels) and fits a live page to it.
+    func place(at frame: CGRect, boardSize: CGSize) {
         self.frame = frame
-        liveBoard?.layout(size: boardSize, scale: scale)
+        fitPage(boardSize: boardSize)
     }
 
     /// Shows a snapshot, decoded off the main thread no larger than `maxPixelSize` on its longer side.
@@ -68,11 +71,11 @@ final class ArtboardView: NSView {
     }
 
     /// Shows the board's web view, faded in once its page has loaded so a blank page never flashes.
-    func attach(_ board: LiveBoard, size: CGSize, scale: CGFloat) {
+    func attach(_ board: LiveBoard, size: CGSize) {
         liveBoard = board
         board.webView.alphaValue = board.isLoaded ? 1 : 0
-        addSubview(board.webView)
-        board.layout(size: size, scale: scale)
+        pageHost.addSubview(board.webView)
+        fitPage(boardSize: size)
     }
 
     /// Stops treating `board` as this view's page (its web view is already removed).
@@ -87,5 +90,11 @@ final class ArtboardView: NSView {
 
     func revealLoadedPage() {
         liveBoard?.webView.alphaValue = 1
+    }
+
+    /// Fits the live page, if any, to this view as it is on screen, so it covers the snapshot exactly.
+    private func fitPage(boardSize: CGSize) {
+        guard let webView = liveBoard?.webView else { return }
+        pageHost.fit(webView, to: PageFit(boardSize: boardSize, onScreen: bounds.size))
     }
 }

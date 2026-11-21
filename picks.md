@@ -10,3 +10,4 @@
 - Animations (2026-11-20): "Any CSS/JS in the HTML (Recommended)"
 - Extra UI scope (2026-11-20): "Pages, Document tabs, Connect agent button"
 - Look (2026-11-20): "Dark, Paper-like layout (Recommended)"
+- Live budget (2026-11-20): "Pixel budget (Recommended)"

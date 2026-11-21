@@ -72,6 +72,8 @@ final class CanvasView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = Self.background.cgColor
+        // Views don't clip their subviews by default; boards, web views, titles and the hover bar stay inside.
+        clipsToBounds = true
         boardLayer.wantsLayer = true
         addSubview(boardLayer)
         addSubview(overlay)
@@ -146,10 +148,10 @@ final class CanvasView: NSView {
         chromeDidChange()
     }
 
-    /// Frames every board for `viewport` and lays live pages out at its scale.
+    /// Frames every board for `viewport` and fits live pages to them.
     private func layOutBoards(in viewport: Viewport) {
         for board in boards {
-            boardViews[board.id]?.place(at: screenRect(of: board.rect, in: viewport), boardSize: board.rect.size, scale: viewport.scale)
+            boardViews[board.id]?.place(at: screenRect(of: board.rect, in: viewport), boardSize: board.rect.size)
         }
     }
 

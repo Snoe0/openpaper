@@ -26,7 +26,7 @@ final class SnapshotRenderer {
         let page = LiveBoard(artboardID: board.id, schemeHandler: schemeHandler, receivesMessages: false)
         Self.keepRenderingWhileHidden(page.webView)
         window.contentView?.addSubview(page.webView)
-        page.layout(size: size, scale: 1)
+        page.layout(size: size)
         defer { page.webView.removeFromSuperview() }
         page.load()
         guard await page.waitUntilLoaded() else { throw SnapshotError.loadFailed }

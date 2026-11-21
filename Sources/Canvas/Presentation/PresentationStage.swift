@@ -1,16 +1,19 @@
 import AppKit
+import CanvasCore
 
 /// The black backdrop that shows one live page scaled uniformly to fit, centred and letterboxed.
-/// The page lays out at the board's own CSS size (`PageFit` sets the frame and page zoom, as on the
-/// canvas), so media queries see the artboard's width whatever the screen.
+/// The page lays out at the board's own CSS size in a `PageHost`, as on the canvas, so media queries
+/// and text sizes are the artboard's whatever the screen.
 final class PresentationStage: NSView {
     private var page: LiveBoard?
+    private let pageHost = PageHost()
     private var boardSize: CGSize = .zero
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
+        addSubview(pageHost)
     }
 
     @available(*, unavailable)
@@ -19,7 +22,7 @@ final class PresentationStage: NSView {
     func show(_ page: LiveBoard, boardSize: CGSize) {
         if self.page !== page {
             self.page?.webView.removeFromSuperview()
-            addSubview(page.webView)
+            pageHost.addSubview(page.webView)
             self.page = page
         }
         self.boardSize = boardSize
@@ -38,16 +41,6 @@ final class PresentationStage: NSView {
 
     private func fitPage() {
         guard let page, boardSize.width > 0, boardSize.height > 0, !bounds.isEmpty else { return }
-        page.layout(size: boardSize, scale: fittingScale())
-        page.webView.setFrameOrigin(centredOrigin(of: page.webView.frame.size))
-    }
-
-    /// The largest scale that shows the whole board on the stage, however small or large the board.
-    private func fittingScale() -> CGFloat {
-        min(bounds.width / boardSize.width, bounds.height / boardSize.height)
-    }
-
-    private func centredOrigin(of size: CGSize) -> CGPoint {
-        CGPoint(x: ((bounds.width - size.width) / 2).rounded(), y: ((bounds.height - size.height) / 2).rounded())
+        pageHost.fit(page.webView, boardSize: boardSize, centredIn: bounds)
     }
 }

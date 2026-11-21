@@ -42,11 +42,11 @@ final class LiveBoard: NSObject {
         webView.load(URLRequest(url: CanvasURL.artboard(artboardID)))
     }
 
-    /// Lays the page out for a board of `size` canvas points shown at `scale`, so text renders crisply.
-    func layout(size: CGSize, scale: CGFloat) {
-        let fit = PageFit(boardSize: size, scale: scale)
-        webView.frame = CGRect(origin: .zero, size: fit.frameSize)
-        if webView.pageZoom != fit.zoom { webView.pageZoom = fit.zoom }
+    /// Lays the page out at 100%, at the board's size in canvas points (off-screen renders). On
+    /// screen, a `PageHost` fits pages to their board views at any scale.
+    func layout(size: CGSize) {
+        webView.frame = CGRect(origin: .zero, size: size)
+        webView.pageZoom = 1
     }
 
     /// Runs a control script (pause, resume, inspect) without waiting; nothing happens before the runtime is ready.
