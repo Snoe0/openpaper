@@ -40,7 +40,7 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Sources/Canvas/Canvas/*`
   - Done when: pan (scroll/space-drag), pinch/⌘-scroll zoom, zoom-to-fit (⇧1) and zoom-to-selection (⇧2); artboards render crisp at any zoom; click selects, title-drag moves (persisted); double-click enters inspect mode, Esc exits; a hover bar has play/pause/restart and mode toggle; the visibility manager does snapshot + pause + detach + LRU pool
   - Verify: `make test`, plus a manual run with 30 animated boards: CPU near idle when zoomed out
-- [ ] **T5 MCP bridge** (wave 3, parallel with T4, disjoint files)
+- [x] **T5 MCP bridge** (wave 3, parallel with T4, disjoint files)
   - Files: `Sources/CanvasCore/Bridge/*`, `Sources/canvas-mcp/*`, `Tests/CanvasCoreTests/Bridge*`
   - Done when: tools take an optional `page` (default: current page), and there are `list_pages`/`create_page`/`switch_page` tools; the bridge records the last tool call and connection status for the UI; localhost HTTP server in the app (random port + token in `~/Library/Application Support/Canvas/bridge.json`), using a `CanvasController` protocol the app implements; stdio JSON-RPC MCP in the CLI (no deps); tools: `get_document`, `open_document`, `create_document`, `create_artboard`, `read_artboard`, `write_artboard`, `edit_artboard` (str-replace), `update_artboard` (name/size/position/mode), `delete_artboard`, `duplicate_artboard`, `get_selection`, `screenshot` (returns a PNG image), `get_console`, `focus_artboard`, `list_components`, `read_component`, `write_component`, `delete_component`, `get_tokens`, `set_tokens`, `set_mode`; server `instructions` explain the format
   - Verify: `make test` (scripted JSON-RPC session against a mock controller)
