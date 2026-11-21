@@ -9,12 +9,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: .darkAqua)
         NSApp.mainMenu = makeMainMenu()
         window = makeMainWindow()
+        showCanvas()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Temporary until the app shell (T6): the canvas fills the window, configured from the environment.
+    private func showCanvas() {
+        guard let window else { return }
+        let canvas = DevCanvas.fromEnvironment()
+        canvas.view.frame = window.contentView?.bounds ?? .zero
+        window.contentViewController = canvas
+        window.makeFirstResponder(canvas.canvasView)
+        #if DEBUG
+        DevRemote.install(for: window, canvas: canvas)
+        #endif
     }
 
     private func makeMainWindow() -> NSWindow {

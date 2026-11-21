@@ -36,7 +36,7 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Sources/CanvasCore/Resources/runtime.js`, `Tests/CanvasCoreTests/Runtime*`
   - Done when: the `window.Canvas` API has `defineComponents(map)` (props + slots, hot re-render of instances), `setTokens(css)`, `setMode(m)`, `pause()`/`resume()`/`restart()` (Web Animations, media, rAF + timer gate), `inspect(on)` (hover highlight, click → selector + outerHTML posted to `webkit.messageHandlers.canvas`), and console/error capture posted to Swift
   - Verify: `make test` (WKWebView-backed XCTest)
-- [ ] **T4 Canvas view** (wave 3, after T2, T3)
+- [x] **T4 Canvas view** (wave 3, after T2, T3)
   - Files: `Sources/Canvas/Canvas/*`
   - Done when: pan (scroll/space-drag), pinch/⌘-scroll zoom, zoom-to-fit (⇧1) and zoom-to-selection (⇧2); artboards render crisp at any zoom; click selects, title-drag moves (persisted); double-click enters inspect mode, Esc exits; a hover bar has play/pause/restart and mode toggle; the visibility manager does snapshot + pause + detach + LRU pool
   - Verify: `make test`, plus a manual run with 30 animated boards: CPU near idle when zoomed out
@@ -62,3 +62,8 @@ Manual property editing, pen/vector tools, code export, undo history (keep docs 
 
 ### Git
 Initial commit on `main`, then a `v1` branch. One commit per task after both reviews pass. No push.
+
+### Open notes (fold into Review)
+- T3 minors accepted: held media rejects page's `play()` with AbortError; detached `new Audio()` not held; declarative/closed pre-existing shadow roots not tracked; restart fires animationcancel/start; interval drift; branching component cycles bounded only by depth cap; one-shots with different keyframes bounded by 200 cap; untracked animation's finish handler can still prune (one-line guard).
+- T5 minors: small rejected request may surface as reset; 60 s idle timeout also closes authenticated keep-alive (race → networkConnectionLost); `testReportsARejectedTokenAsSuch` should set an invalid `CANVAS_APP_BUNDLE_ID`; launch timeout cached 30 s; deprecated `String(cString:)` in BridgeSocketSupport.swift:122.
+- T6 must: offer a bridge restart when `BridgeServer` stops after listener failure (status clears, nothing restarts).
