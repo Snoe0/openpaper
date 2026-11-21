@@ -3,57 +3,40 @@ import CanvasCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: NSWindow?
+    private let agent = AgentConnection()
+    private lazy var workspace = Workspace(agent: agent)
+    private var windowController: MainWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.appearance = NSAppearance(named: .darkAqua)
-        NSApp.mainMenu = makeMainMenu()
-        window = makeMainWindow()
-        showCanvas()
-        window?.makeKeyAndOrderFront(nil)
+        let windowController = MainWindowController(workspace: workspace, agent: agent)
+        self.windowController = windowController
+        NSApp.mainMenu = MainMenu.make(openRecentDelegate: windowController)
+        DevHooks.openFromEnvironment(in: workspace)
+        windowController.showWindow(nil)
         NSApp.activate()
+        startBridge()
+    }
+
+    /// Claude Code's config may have changed while Canvas was in the background.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Task { await agent.checkRegistration() }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        agent.stopBridge()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
 
-    /// Temporary until the app shell (T6): the canvas fills the window, configured from the environment.
-    private func showCanvas() {
-        guard let window else { return }
-        let canvas = DevCanvas.fromEnvironment()
-        canvas.view.frame = window.contentView?.bounds ?? .zero
-        window.contentViewController = canvas
-        window.makeFirstResponder(canvas.canvasView)
-        #if DEBUG
-        DevRemote.install(for: window, canvas: canvas)
-        #endif
-    }
-
-    private func makeMainWindow() -> NSWindow {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Canvas"
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.backgroundColor = NSColor(srgbRed: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255, alpha: 1)
-        window.isReleasedWhenClosed = false
-        window.center()
-        return window
-    }
-
-    private func makeMainMenu() -> NSMenu {
-        let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Canvas", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-
-        let appMenuItem = NSMenuItem()
-        appMenuItem.submenu = appMenu
-
-        let mainMenu = NSMenu()
-        mainMenu.addItem(appMenuItem)
-        return mainMenu
+    /// Startup failures show in the MCP panels, which offer a restart. Then reads whether Claude Code
+    /// already has Canvas registered.
+    private func startBridge() {
+        Task {
+            await agent.startBridge(for: workspace)
+            await agent.checkRegistration()
+        }
     }
 }
