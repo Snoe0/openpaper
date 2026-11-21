@@ -1,9 +1,10 @@
 import AppKit
 import CanvasCore
 
-/// Keeps the developer hooks working with tabs: the canvas `DevCanvas` builds from the environment
-/// (`CANVAS_DOC`, `CANVAS_DEMO_BOARDS`, `CANVAS_ZOOM`) opens as a tab, and in Debug builds
-/// `DevRemote` (`CANVAS_REMOTE`) follows the showing tab.
+#if DEBUG
+/// Keeps the Debug-only developer hooks working with tabs: the canvas `DevCanvas` builds from the
+/// environment (`CANVAS_DOC`, `CANVAS_DEMO_BOARDS`, `CANVAS_ZOOM`) opens as a tab, and `DevRemote`
+/// (`CANVAS_REMOTE`) follows the showing tab.
 @MainActor
 enum DevHooks {
     static func openFromEnvironment(in workspace: Workspace) {
@@ -12,7 +13,6 @@ enum DevHooks {
         workspace.adopt(canvas)
     }
 
-    #if DEBUG
     /// DevRemote needs a canvas even on the Dashboard; this empty one stands in (it only holds it weakly).
     private static let noCanvas = CanvasViewController(document: nil)
 
@@ -20,5 +20,5 @@ enum DevHooks {
     static func pointRemote(at canvas: CanvasViewController?, in window: NSWindow) {
         DevRemote.install(for: window, canvas: canvas ?? noCanvas)
     }
-    #endif
 }
+#endif

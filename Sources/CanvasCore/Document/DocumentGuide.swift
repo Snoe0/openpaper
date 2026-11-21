@@ -14,6 +14,7 @@ public enum DocumentGuide {
     - `artboards/<id>.html`: one artboard each.
     - `components/<name>.html`: one reusable component each.
     - `assets/`: images, fonts and video.
+    - Limits: artboard widths up to 16384 px, heights up to 32768 px, `x`/`y` within ±1,000,000, and mode names made of letters, digits, `_` and `-`. The app won't open a `canvas.json` or `tokens.json` that breaks them, and ignores such an edit, keeping the last good version.
 
     ## Artboards
 

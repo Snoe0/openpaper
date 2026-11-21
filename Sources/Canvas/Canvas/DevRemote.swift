@@ -2,9 +2,9 @@
 import AppKit
 import CanvasCore
 
-/// Temporary dev hook (goes away with the dev canvas in T6; Debug builds only) for driving the canvas without
-/// Accessibility or Screen Recording permissions. With `CANVAS_REMOTE=/path/prefix` set,
-/// `kill -USR1 <pid>` runs the commands in `<prefix>.cmd`, one per line, through real window events:
+/// Debug-only dev hook for driving the canvas without Accessibility or Screen Recording permissions. With
+/// `CANVAS_REMOTE=/path/prefix` set, `kill -USR1 <pid>` runs the commands in `<prefix>.cmd`, one per line,
+/// through real window events:
 ///   capture | wait <ms> | key <keyCode> [shift] | click <x> <y> [shift] [double] | move <x> <y>
 ///   drag <x1> <y1> <x2> <y2> | scroll <dx> <dy> [cmd] | tool select|hand|inspect | state | snapshot <artboard-id>
 ///   write <artboard-id> <html…> | token <name> <value> | miniaturize | deminiaturize

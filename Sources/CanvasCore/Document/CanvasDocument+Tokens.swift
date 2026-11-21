@@ -16,10 +16,10 @@ extension CanvasDocument {
     /// Replaces the mode list in one change: a document mode that is no longer listed falls back to
     /// the first mode, and artboard overrides naming a removed mode are cleared.
     public func setModes(_ modes: [String]) throws {
-        guard let first = modes.first else { throw DocumentError.invalidValue("modes must not be empty") }
+        if let problem = Tokens.modesProblem(modes) { throw DocumentError.invalidValue(problem) }
         try update { manifest, tokens in
             tokens.modes = modes
-            if !modes.contains(manifest.mode) { manifest.mode = first }
+            if !modes.contains(manifest.mode) { manifest.mode = modes[0] }
             for index in manifest.artboards.indices where manifest.artboards[index].mode.map({ !modes.contains($0) }) == true {
                 manifest.artboards[index].mode = nil
             }
@@ -40,6 +40,25 @@ extension CanvasDocument {
 
     private static func breaksCSS(_ value: String) -> Bool {
         value.contains { "{};<".contains($0) }
+    }
+}
+
+extension Tokens {
+    /// Rejects a `tokens.json` whose mode list `modesProblem` finds fault with.
+    func validate() throws {
+        if let problem = Self.modesProblem(modes) { throw DocumentError.malformed("\(DocumentPath.tokens): \(problem)") }
+    }
+
+    /// Why a mode list is unusable; nil when it's fine. There must be at least one mode, and names are
+    /// unique and use only the characters token names keep in CSS (letters, digits, `_`, `-`), so a
+    /// mode can go into a `[data-mode="…"]` selector as is.
+    static func modesProblem(_ modes: [String]) -> String? {
+        if modes.isEmpty { return "modes must not be empty" }
+        if let bad = modes.first(where: { $0.wholeMatch(of: /[A-Za-z0-9_-]+/) == nil }) {
+            return "mode \"\(bad)\" must be made of letters, digits, _ and - only"
+        }
+        if Set(modes).count != modes.count { return "mode names must be unique" }
+        return nil
     }
 }
 

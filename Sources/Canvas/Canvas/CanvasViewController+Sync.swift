@@ -32,10 +32,6 @@ extension CanvasViewController {
         refreshHoverBar()
     }
 
-    func effectiveMode(of board: Artboard, in manifest: Manifest) -> String {
-        board.mode ?? manifest.mode
-    }
-
     /// Reloads a live page without a blank flash: its current look goes onto the snapshot layer (when
     /// anyone can see it), sharp at the current zoom, and the web view stays hidden until the new page
     /// has loaded. Queued on the page, so snapshots wait for the new page.
@@ -66,7 +62,7 @@ extension CanvasViewController {
                 continue
             }
             let resized = before.width != board.width || before.height != board.height
-            let modeChanged = effectiveMode(of: before, in: old) != effectiveMode(of: board, in: document.manifest)
+            let modeChanged = before.effectiveMode(in: old) != board.effectiveMode(in: document.manifest)
             guard resized || modeChanged else { continue }
             changed.append(board.id)
             updateLivePage(board, resized: resized)
@@ -80,7 +76,7 @@ extension CanvasViewController {
         if resized {
             reload(live)
         } else {
-            hotPatch(live, "Canvas.setMode(mode)", arguments: ["mode": effectiveMode(of: board, in: document.manifest)])
+            hotPatch(live, "Canvas.setMode(mode)", arguments: ["mode": board.effectiveMode(in: document.manifest)])
         }
     }
 
@@ -138,7 +134,7 @@ extension CanvasViewController {
         let css = TokenCompiler.css(for: document.tokens)
         for live in liveBoards.values {
             guard let board = try? document.artboard(id: live.artboardID) else { continue }
-            hotPatch(live, "Canvas.setTokens(css); Canvas.setMode(mode)", arguments: ["css": css, "mode": effectiveMode(of: board, in: document.manifest)])
+            hotPatch(live, "Canvas.setTokens(css); Canvas.setMode(mode)", arguments: ["css": css, "mode": board.effectiveMode(in: document.manifest)])
         }
         refreshSnapshots(of: canvasView.boards.map(\.id))
         refreshHoverBar()

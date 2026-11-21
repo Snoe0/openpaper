@@ -246,6 +246,10 @@ final class BridgeToolTests: XCTestCase {
         XCTAssertTrue(notUnique.contains("appears 2 times"), notUnique)
         let badSize = try await client.failure("update_artboard", ["id": "hero", "width": -1])
         XCTAssertTrue(badSize.contains("width"), badSize)
+        let tooBig = try await client.failure("create_artboard", ["name": "X", "width": 20_000, "height": 10])
+        XCTAssertTrue(tooBig.contains("width must be") && tooBig.contains("16384") && tooBig.hasSuffix("not 20000"), tooBig)
+        let tooFar = try await client.failure("update_artboard", ["id": "hero", "x": 1e12])
+        XCTAssertTrue(tooFar.contains("x must be") && tooFar.contains("1000000"), tooFar)
     }
 
     @MainActor

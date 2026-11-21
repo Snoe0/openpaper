@@ -128,6 +128,6 @@ private struct Look: Equatable {
 
     init(_ board: Artboard, in manifest: Manifest) {
         size = CGSize(width: board.width, height: board.height)
-        mode = board.mode ?? manifest.mode
+        mode = board.effectiveMode(in: manifest)
     }
 }

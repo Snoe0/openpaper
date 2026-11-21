@@ -16,7 +16,7 @@ final class AppConnection {
             return Settings(
                 bridgeFile: environment["CANVAS_BRIDGE_FILE"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) } ?? defaultBridgeFile,
                 mayLaunch: environment["CANVAS_NO_LAUNCH"] == nil,
-                appBundleID: environment["CANVAS_APP_BUNDLE_ID"] ?? "local.canvas.app"
+                appBundleID: environment["CANVAS_APP_BUNDLE_ID"].flatMap { $0.isEmpty ? nil : $0 } ?? "local.canvas.app"
             )
         }
 

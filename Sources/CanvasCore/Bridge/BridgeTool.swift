@@ -91,5 +91,10 @@ enum Schema {
     static let page = string("Page id or name. Defaults to the current page.")
     static let artboardID = string("Artboard id, as listed by get_document.")
     static let componentName = string("Component name: lowercase letters, digits and dashes, e.g. \"pricing-card\" for <x-pricing-card>.")
+    static let width = number("Width in CSS pixels, at most \(Int(Artboard.maxWidth)).")
+    static let height = number("Height in CSS pixels, at most \(Int(Artboard.maxHeight)).")
+    static func coordinate(_ axis: String, _ note: String = "") -> JSONValue {
+        number("Canvas \(axis) position, from -\(Int(Artboard.maxCoordinate)) to \(Int(Artboard.maxCoordinate))\(note).")
+    }
     static let html = string("HTML body fragment (no <html>, <head> or <body>); may include its own <style> and <script>.")
 }

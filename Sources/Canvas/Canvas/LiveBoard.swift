@@ -124,6 +124,28 @@ final class LiveBoard: NSObject {
 }
 
 extension LiveBoard: WKNavigationDelegate {
+    /// Keeps the page on its board (`NavigationPolicy`); a clicked web link opens in the browser. Every
+    /// board web view (canvas, presentation, snapshots) is a `LiveBoard`, so they all follow it.
+    func webView(
+        _ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+    ) {
+        let policy = NavigationPolicy.decide(
+            url: action.request.url, targetIsMainFrame: action.targetFrame?.isMainFrame,
+            boardURL: CanvasURL.artboard(artboardID), isUserClick: isUserClick(action)
+        )
+        if policy == .openExternally, let url = action.request.url { NSWorkspace.shared.open(url) }
+        decisionHandler(policy == .allow ? .allow : .cancel)
+    }
+
+    /// A script's `a.click()` is a link activation too; only a real click on a page that takes the pointer counts.
+    private func isUserClick(_ action: WKNavigationAction) -> Bool {
+        NavigationPolicy.isUserClick(
+            isLinkActivation: action.navigationType == .linkActivated,
+            mouseButton: action.buttonNumber, viewAcceptsMouse: webView.acceptsMouse
+        )
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         isLoaded = true
         finishWaiting()
@@ -131,11 +153,18 @@ extension LiveBoard: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
-        finishWaiting()
+        if !isOurOwnCancel(error) { finishWaiting() }
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error) {
-        finishWaiting()
+        if !isOurOwnCancel(error) { finishWaiting() }
+    }
+
+    /// WebKit's "frame load interrupted" (WebKitErrorDomain 102; the named constants are deprecated): a
+    /// navigation the policy above cancelled, which says nothing about the board's own page loading.
+    private func isOurOwnCancel(_ error: any Error) -> Bool {
+        let error = error as NSError
+        return error.domain == "WebKitErrorDomain" && error.code == 102
     }
 
     /// The owner decides whether a crashed page comes back; the page itself never reloads.

@@ -350,6 +350,127 @@ final class DocumentStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testArtboardGeometryHasUpperBounds() throws {
+        let document = try makeDocument()
+        let (width, height, reach) = (Artboard.maxWidth, Artboard.maxHeight, Artboard.maxCoordinate)
+        XCTAssertEqual(width, 16_384)
+        XCTAssertEqual(height, 32_768)
+        XCTAssertEqual(reach, 1_000_000)
+        let board = try document.addArtboard(name: "A", width: width, height: height, html: "", x: -reach, y: reach)
+
+        for (attempt, limit) in [({ _ = try document.addArtboard(name: "B", width: width + 1, height: 10, html: "") }, "16384"),
+                                 ({ _ = try document.addArtboard(name: "B", width: 10, height: height + 1, html: "") }, "32768"),
+                                 ({ _ = try document.addArtboard(name: "B", width: 10, height: 1e300, html: "") }, "32768"),
+                                 ({ _ = try document.addArtboard(name: "B", width: 10, height: 10, html: "", x: reach + 1) }, "1000000"),
+                                 ({ try document.updateArtboard(id: board.id, width: width + 1) }, "16384"),
+                                 ({ try document.updateArtboard(id: board.id, height: height + 1) }, "32768"),
+                                 ({ try document.updateArtboard(id: board.id, y: -1e300) }, "1000000")] {
+            XCTAssertThrowsError(try attempt()) {
+                guard case DocumentError.invalidValue(let detail) = $0 else { return XCTFail("\($0)") }
+                XCTAssertTrue(detail.contains(limit), detail)
+            }
+        }
+        XCTAssertEqual(document.manifest.artboards.map(\.id), ["a"])
+    }
+
+    func testTheGuideStatesTheGeometryLimits() {
+        for limit in ["widths up to \(Int(Artboard.maxWidth)) px", "heights up to \(Int(Artboard.maxHeight)) px", "±1,000,000"] {
+            XCTAssertTrue(DocumentGuide.markdown.contains(limit), limit)
+        }
+    }
+
+    @MainActor
+    func testGeometryErrorsPrintWholeNumbersWithoutADecimalPoint() throws {
+        let document = try makeDocument()
+        XCTAssertThrowsError(try document.addArtboard(name: "B", width: 20_000, height: 10, html: "")) {
+            guard case DocumentError.invalidValue(let detail) = $0 else { return XCTFail("\($0)") }
+            XCTAssertTrue(detail.hasSuffix("not 20000"), detail)
+        }
+        XCTAssertThrowsError(try document.addArtboard(name: "B", width: 10, height: 10, html: "", x: -2_000_000.5)) {
+            guard case DocumentError.invalidValue(let detail) = $0 else { return XCTFail("\($0)") }
+            XCTAssertTrue(detail.hasSuffix("not -2000000.5"), detail)
+        }
+    }
+
+    @MainActor
+    func testAutomaticPlacementCantGoPastTheCoordinateLimit() throws {
+        let document = try makeDocument()
+        try document.addArtboard(name: "Far", width: 100, height: 100, html: "", x: Artboard.maxCoordinate - 100)
+
+        XCTAssertThrowsError(try document.addArtboard(name: "Next", width: 100, height: 100, html: "")) {
+            guard case DocumentError.invalidValue(let detail) = $0 else { return XCTFail("\($0)") }
+            XCTAssertEqual(detail, "no room to place it automatically (x would be 1000080, past 1000000); pass x and y")
+        }
+        XCTAssertThrowsError(try document.duplicateArtboard(id: "far")) {
+            guard case DocumentError.invalidValue(let detail) = $0 else { return XCTFail("\($0)") }
+            XCTAssertEqual(detail, "no room to place it automatically (x would be 1000080, past 1000000); "
+                + "make room with update_artboard, or create the copy with create_artboard and x/y")
+        }
+        XCTAssertEqual(document.manifest.artboards.map(\.id), ["far"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: document.url.appendingPathComponent("artboards/next.html").path))
+    }
+
+    @MainActor
+    func testOpenRejectsOutOfRangeGeometry() throws {
+        let created = try makeDocument()
+        let hero = Artboard(id: "hero", page: "p1", name: "Hero", file: "artboards/hero.html", x: 0, y: 0, width: 1, height: 1)
+        var huge = hero, tall = hero, zero = hero, far = hero
+        huge.width = 1e300
+        tall.height = 32_769
+        zero.height = 0
+        far.x = -2_000_000
+        for (board, limit) in [(huge, "16384"), (tall, "32768"), (zero, "32768"), (far, "1000000")] {
+            var manifest = created.manifest
+            manifest.artboards = [board]
+            try writeExternally(try manifestJSON(manifest), to: "canvas.json", in: created)
+
+            XCTAssertThrowsError(try CanvasDocument.open(at: created.url)) {
+                guard case DocumentError.malformed(let detail) = $0 else { return XCTFail("\($0)") }
+                XCTAssertTrue(detail.contains("hero") && detail.contains(limit), detail)
+            }
+        }
+    }
+
+    @MainActor
+    func testEffectiveModeFallsBackToTheDocumentMode() throws {
+        let document = try makeDocument()
+        let board = try document.addArtboard(name: "A", width: 10, height: 10, html: "")
+
+        XCTAssertEqual(board.effectiveMode(in: document.manifest), "light")
+        try document.updateArtboard(id: board.id, mode: .some("dark"))
+        XCTAssertEqual(try document.artboard(id: board.id).effectiveMode(in: document.manifest), "dark")
+    }
+
+    @MainActor
+    func testDeletePageKeepsABoardAnOutsideEditMovedOffIt() throws {
+        let document = try makeDocument()
+        let other = try document.addPage(name: "Other")
+        try document.addArtboard(name: "Moved", width: 10, height: 10, html: "<p>keep</p>", page: other.id)
+        var external = document.manifest
+        external.artboards[0].page = "p1"
+        try writeExternally(try manifestJSON(external), to: "canvas.json", in: document)
+
+        try document.deletePage(id: other.id)
+
+        XCTAssertEqual(document.manifest.artboards.map(\.id), ["moved"])
+        XCTAssertEqual(try document.html(ofArtboard: "moved"), "<p>keep</p>")
+    }
+
+    @MainActor
+    func testDeleteArtboardSeesABoardAnOutsideEditAdded() throws {
+        let document = try makeDocument()
+        var external = document.manifest
+        external.artboards = [Artboard(id: "late", page: "p1", name: "Late", file: "artboards/late.html", x: 0, y: 0, width: 10, height: 10)]
+        try writeExternally("<p>late</p>", to: "artboards/late.html", in: document)
+        try writeExternally(try manifestJSON(external), to: "canvas.json", in: document)
+
+        try document.deleteArtboard(id: "late")
+
+        XCTAssertEqual(document.manifest.artboards, [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: document.url.appendingPathComponent("artboards/late.html").path))
+    }
+
+    @MainActor
     func testOpenRejectsDuplicateIdsAndUnknownPages() throws {
         let created = try makeDocument()
         let hero = Artboard(id: "hero", page: "p1", name: "Hero", file: "artboards/hero.html", x: 0, y: 0, width: 1, height: 1)

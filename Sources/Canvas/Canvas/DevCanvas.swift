@@ -1,7 +1,8 @@
+#if DEBUG
 import AppKit
 import CanvasCore
 
-/// Temporary dev hook until the app shell lands: builds the canvas from environment variables.
+/// Debug-only dev hook: builds a canvas from environment variables, opened as a tab by `DevHooks`.
 /// `CANVAS_DOC=/path/X.canvas` opens a document, `CANVAS_DEMO_BOARDS=<n>` makes a temporary one with
 /// n animated boards, and `CANVAS_ZOOM=<scale>` sets the first zoom (default: fit).
 @MainActor
@@ -58,3 +59,4 @@ enum DevCanvas {
         """
     }
 }
+#endif

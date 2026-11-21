@@ -7,11 +7,11 @@ extension BridgeTools {
             description: "Add an artboard with its HTML. Without x/y it goes right of the right-most artboard on the page.",
             inputSchema: Schema.object([
                 "name": Schema.string("Artboard name, e.g. \"Pricing\"; its id is derived from it."),
-                "width": Schema.number("Width in CSS pixels."),
-                "height": Schema.number("Height in CSS pixels."),
+                "width": Schema.width,
+                "height": Schema.height,
                 "html": Schema.html,
-                "x": Schema.number("Canvas x position; omit to place automatically."),
-                "y": Schema.number("Canvas y position; omit to place automatically."),
+                "x": Schema.coordinate("x", "; omit to place automatically"),
+                "y": Schema.coordinate("y", "; omit to place automatically"),
                 "page": Schema.page,
             ], required: ["name", "width", "height"]),
             run: { call in
@@ -60,10 +60,10 @@ extension BridgeTools {
             inputSchema: Schema.object([
                 "id": Schema.artboardID,
                 "name": Schema.string("New name (the id stays the same)."),
-                "x": Schema.number("Canvas x position."),
-                "y": Schema.number("Canvas y position."),
-                "width": Schema.number("Width in CSS pixels."),
-                "height": Schema.number("Height in CSS pixels."),
+                "x": Schema.coordinate("x"),
+                "y": Schema.coordinate("y"),
+                "width": Schema.width,
+                "height": Schema.height,
                 "mode": ["type": ["string", "null"], "description": "Token mode for this artboard, or null to follow the document mode."],
             ], required: ["id"]),
             run: { call in

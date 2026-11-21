@@ -127,7 +127,9 @@ public final class CanvasDocument {
     }
 
     static func decodeTokens(_ data: Data) throws -> Tokens {
-        try decodeJSON(Tokens.self, from: data, file: DocumentPath.tokens)
+        let tokens = try decodeJSON(Tokens.self, from: data, file: DocumentPath.tokens)
+        try tokens.validate()
+        return tokens
     }
 
     private static func decodeJSON<Value: Decodable>(_ type: Value.Type, from data: Data, file: String) throws -> Value {
@@ -162,7 +164,7 @@ public final class ChangeSubscription {
 
 extension Manifest {
     /// Rejects a manifest the document can't safely use: no pages, duplicate ids, artboards on unknown
-    /// pages, or an artboard file outside `artboards/<id>.html`.
+    /// pages, an artboard file outside `artboards/<id>.html`, or artboard geometry out of range.
     func validate() throws {
         let file = DocumentPath.manifest
         guard !pages.isEmpty else { throw DocumentError.malformed("\(file): there must be at least one page") }
@@ -178,6 +180,9 @@ extension Manifest {
             }
             guard pageIDs.contains(board.page) else {
                 throw DocumentError.malformed("\(file): artboard \"\(board.id)\" is on unknown page \"\(board.page)\"")
+            }
+            if let problem = board.geometryProblem {
+                throw DocumentError.malformed("\(file): artboard \"\(board.id)\" \(problem)")
             }
         }
     }

@@ -19,11 +19,14 @@ extension CanvasDocument {
     }
 
     /// Deletes the page with its artboards and their files.
+    /// The boards to remove are taken from the manifest as reloaded for the change, so a board an
+    /// outside edit moved off the page keeps its file.
     public func deletePage(id: String) throws {
-        _ = try manifest.pageIndex(id)
-        guard manifest.pages.count > 1 else { throw DocumentError.lastPage }
-        let orphans = artboards(onPage: id)
+        var orphans: [Artboard] = []
         try updateManifest { manifest in
+            _ = try manifest.pageIndex(id)
+            guard manifest.pages.count > 1 else { throw DocumentError.lastPage }
+            orphans = manifest.artboards.filter { $0.page == id }
             manifest.pages.removeAll { $0.id == id }
             manifest.artboards.removeAll { $0.page == id }
             if manifest.currentPage == id { manifest.currentPage = manifest.pages[0].id }

@@ -38,6 +38,8 @@ func runEndToEnd() {
         setMode(mcp, "dark")
         checkScreenshot(mcp, of: boards[2], shows: Look(badge: .green, mode: .dark))
     }
+    step("a board can't navigate away") { checkBoardStaysOnItsPage(mcp) }
+    step("a board's scripted link click stays on the board") { checkScriptedClickStaysOnTheBoard(mcp) }
     step("console has no errors") { checkConsoleIsClean(mcp) }
     step("pages round trip") { checkPagesRoundTrip(mcp, boardsOnFirstPage: boards.count) }
 
@@ -156,6 +158,30 @@ func setMode(_ mcp: MCPClient, _ mode: String) {
     mcp.callText("set_mode", ["mode": mode])
     let current = (mcp.callJSON("get_tokens") as? JSON)?["mode"] as? String
     expect(current == mode, "set_mode: get_tokens reports mode \(current ?? "nil"), expected \(mode)")
+}
+
+/// A script sending the page elsewhere is cancelled, so the board still renders its own page.
+func checkBoardStaysOnItsPage(_ mcp: MCPClient) {
+    let html = boardHTML("Delta") + #"<script>location.href = "about:blank";</script>"#
+    showsItsOwnPage(mcp, boardNamed: "Delta", html: html)
+}
+
+/// Smoke test: a board whose script clicks a web link still renders its own page. It can't catch a regression
+/// (canvas and snapshot views ignore the pointer, and a web link never loads in the main frame either way); the
+/// button-0 check that tells a script's click from the user's is covered by the NavigationPolicy unit tests and a
+/// manual WKWebView measurement. The link goes to a reserved, never-resolving domain, so even a regression
+/// would only show an error page instead of reaching a real site.
+func checkScriptedClickStaysOnTheBoard(_ mcp: MCPClient) {
+    let html = boardHTML("Echo") + #"<a id="out" href="https://example.invalid/">out</a><script>document.getElementById("out").click();</script>"#
+    showsItsOwnPage(mcp, boardNamed: "Echo", html: html)
+}
+
+/// Creates a board from `html`, checks it screenshots as a normal board (green badge, dark mode), and deletes it.
+func showsItsOwnPage(_ mcp: MCPClient, boardNamed name: String, html: String) {
+    let created = mcp.callJSON("create_artboard", ["name": name, "width": boardSize.width, "height": boardSize.height, "html": html]) as? JSON ?? [:]
+    guard let id = created["id"] as? String else { fail("create_artboard \(name) returned \(created)") }
+    checkScreenshot(mcp, of: Board(id: id, width: boardSize.width, height: boardSize.height), shows: Look(badge: .green, mode: .dark))
+    mcp.callText("delete_artboard", ["id": id])
 }
 
 func checkConsoleIsClean(_ mcp: MCPClient) {

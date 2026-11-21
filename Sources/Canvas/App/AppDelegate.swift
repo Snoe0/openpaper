@@ -12,7 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let windowController = MainWindowController(workspace: workspace, agent: agent)
         self.windowController = windowController
         NSApp.mainMenu = MainMenu.make(openRecentDelegate: windowController)
+        #if DEBUG
         DevHooks.openFromEnvironment(in: workspace)
+        #endif
         windowController.showWindow(nil)
         NSApp.activate()
         startBridge()

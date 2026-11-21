@@ -85,8 +85,8 @@ extension CanvasViewController: CanvasViewDelegate {
         switch body["type"] as? String {
         case "ready": pageBecameReady(live)
         case "console": recordConsole(body, from: live.artboardID)
-        case "select": selectElement(Self.element(from: body, in: live.artboardID))
-        case "inspectExit": leaveInspectMode()
+        case "select" where inspectedID == live.artboardID: selectElement(Self.element(from: body, in: live.artboardID))
+        case "inspectExit" where inspectedID == live.artboardID: leaveInspectMode()
         default: break
         }
     }
@@ -126,7 +126,7 @@ extension CanvasViewController: CanvasViewDelegate {
 
     func refreshHoverBar() {
         guard let id = canvasView.hoverTargetID, let document, let board = try? document.artboard(id: id) else { return }
-        let mode = document.tokens.modes.count > 1 ? effectiveMode(of: board, in: document.manifest) : nil
+        let mode = document.tokens.modes.count > 1 ? board.effectiveMode(in: document.manifest) : nil
         canvasView.hoverBar.show(isPaused: userPaused.contains(id), mode: mode, canRestart: pool.live.contains(id))
         canvasView.placeHoverBar()
     }
@@ -154,7 +154,7 @@ extension CanvasViewController: CanvasViewDelegate {
         guard let id = canvasView.hoverTargetID, let document, let board = try? document.artboard(id: id) else { return }
         let modes = document.tokens.modes
         guard modes.count > 1 else { return }
-        let current = modes.firstIndex(of: effectiveMode(of: board, in: document.manifest)) ?? -1
+        let current = modes.firstIndex(of: board.effectiveMode(in: document.manifest)) ?? -1
         try? document.updateArtboard(id: id, mode: .some(modes[(current + 1) % modes.count]))
         refreshHoverBar()
     }

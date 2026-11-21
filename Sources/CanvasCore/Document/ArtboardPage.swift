@@ -7,7 +7,7 @@ public enum ArtboardPage {
     @MainActor
     public static func html(for artboard: Artboard, in document: CanvasDocument) throws -> String {
         let body = try document.html(ofArtboard: artboard.id)
-        let mode = artboard.mode ?? document.manifest.mode
+        let mode = artboard.effectiveMode(in: document.manifest)
         return """
         <!doctype html><html data-mode="\(attributeEscaped(mode))"><head><meta charset="utf-8">
         <style id="canvas-reset">html,body{margin:0;padding:0}html{width:\(cssNumber(artboard.width))px;height:\(cssNumber(artboard.height))px;overflow:hidden}</style>
@@ -39,8 +39,8 @@ public enum ArtboardPage {
             .replacingOccurrences(of: "<", with: "&lt;")
     }
 
-    /// 1440 → "1440", 900.5 → "900.5".
-    private static func cssNumber(_ value: Double) -> String {
+    /// 1440 → "1440", 900.5 → "900.5"; never traps, however big the value.
+    static func cssNumber(_ value: Double) -> String {
         value == value.rounded() && abs(value) < 1e15 ? String(Int(value)) : String(value)
     }
 }

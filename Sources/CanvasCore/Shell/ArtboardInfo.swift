@@ -21,16 +21,12 @@ extension CanvasDocument {
     public func info(ofArtboard id: String) -> ArtboardInfo? {
         guard let board = try? artboard(id: id) else { return nil }
         let page = manifest.pages.first { $0.id == board.page }
+        let mode = board.effectiveMode(in: manifest)
         return ArtboardInfo(
             name: board.name,
-            size: "\(Self.dimension(board.width)) × \(Self.dimension(board.height))",
+            size: "\(ArtboardPage.cssNumber(board.width)) × \(ArtboardPage.cssNumber(board.height))",
             page: page?.name ?? board.page,
-            mode: board.mode ?? "\(manifest.mode) (document)"
+            mode: board.mode == nil ? "\(mode) (document)" : mode
         )
-    }
-
-    /// Whole numbers without a decimal point.
-    private static func dimension(_ value: Double) -> String {
-        value == value.rounded() ? String(Int(value)) : String(value)
     }
 }

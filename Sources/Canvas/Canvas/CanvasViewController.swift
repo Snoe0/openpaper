@@ -165,7 +165,7 @@ final class CanvasViewController: NSViewController {
     }
 
     private func showEmptyHint() {
-        let hint = NSTextField(labelWithString: "No document open. Set CANVAS_DOC=/path/Name.canvas to show one.")
+        let hint = NSTextField(labelWithString: "No document open.")
         hint.textColor = .secondaryLabelColor
         hint.font = .systemFont(ofSize: 13)
         hint.translatesAutoresizingMaskIntoConstraints = false

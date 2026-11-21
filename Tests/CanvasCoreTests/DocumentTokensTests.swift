@@ -94,6 +94,35 @@ final class DocumentTokensTests: XCTestCase {
     }
 
     @MainActor
+    func testSetModesRejectsBadModeNames() throws {
+        let document = try makeDocument()
+        let before = document.tokens
+
+        for modes in [["a\\"], ["light", ""], ["light", "light"], ["dark mode"], ["x\"]{}"]] {
+            XCTAssertThrowsError(try document.setModes(modes), "\(modes)") {
+                guard case DocumentError.invalidValue = $0 else { return XCTFail("\($0)") }
+            }
+        }
+        XCTAssertEqual(document.tokens, before)
+        try document.setModes(["Light_1", "high-contrast"])
+        XCTAssertEqual(document.tokens.modes, ["Light_1", "high-contrast"])
+    }
+
+    @MainActor
+    func testOpenRejectsTokensWithBadModeNames() throws {
+        let document = try makeDocument()
+
+        for modes in [#"["a\\"]"#, #"["light",""]"#, #"["dark","dark"]"#, "[]"] {
+            try writeExternally(#"{"modes":\#(modes),"tokens":{}}"#, to: "tokens.json", in: document)
+
+            XCTAssertThrowsError(try CanvasDocument.open(at: document.url), modes) {
+                guard case DocumentError.malformed(let detail) = $0 else { return XCTFail("\($0)") }
+                XCTAssertTrue(detail.contains("tokens.json"), detail)
+            }
+        }
+    }
+
+    @MainActor
     func testSetTokensRejectsValuesThatCouldBreakTheCSS() throws {
         let document = try makeDocument()
         let before = document.tokens

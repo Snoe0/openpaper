@@ -24,7 +24,7 @@ extension CanvasDocument {
         _ = try manifest.pageIndex(pageID)
         try validateGeometry(x: x, y: y, width: width, height: height)
         let board = newArtboard(named: name, page: pageID, width: width, height: height, x: x, y: y, mode: nil)
-        try insert(board, html: html)
+        try insert(board, html: html, ifThereIsNoRoom: "pass x and y")
         return board
     }
 
@@ -65,9 +65,11 @@ extension CanvasDocument {
     }
 
     public func deleteArtboard(id: String) throws {
-        let board = try artboard(id: id)
-        try updateManifest { $0.artboards.removeAll { $0.id == id } }
-        try files.remove(board.file)
+        var file = ""
+        try updateManifest { manifest in
+            file = manifest.artboards.remove(at: try manifest.artboardIndex(id)).file
+        }
+        try files.remove(file)
     }
 
     /// Copies an artboard as "<name> copy", placed like a new artboard on the same page.
@@ -78,7 +80,10 @@ extension CanvasDocument {
             named: "\(original.name) copy", page: original.page,
             width: original.width, height: original.height, x: nil, y: nil, mode: original.mode
         )
-        try insert(copy, html: html(ofArtboard: id))
+        try insert(
+            copy, html: html(ofArtboard: id),
+            ifThereIsNoRoom: "make room with update_artboard, or create the copy with create_artboard and x/y"
+        )
         return copy
     }
 
@@ -95,17 +100,10 @@ extension CanvasDocument {
         )
     }
 
-    /// Sizes must be finite and positive, positions finite.
+    /// The given values must be within `Artboard`'s size and coordinate limits.
     private func validateGeometry(x: Double?, y: Double?, width: Double?, height: Double?) throws {
-        for (label, size) in [("width", width), ("height", height)] {
-            if let size, !(size.isFinite && size > 0) {
-                throw DocumentError.invalidValue("\(label) must be a finite number greater than 0, not \(size)")
-            }
-        }
-        for (label, coordinate) in [("x", x), ("y", y)] {
-            if let coordinate, !coordinate.isFinite {
-                throw DocumentError.invalidValue("\(label) must be a finite number, not \(coordinate)")
-            }
+        if let problem = Artboard.geometryProblem(x: x, y: y, width: width, height: height) {
+            throw DocumentError.invalidValue(problem)
         }
     }
 
@@ -115,7 +113,12 @@ extension CanvasDocument {
         throw DocumentError.invalidValue("mode \"\(mode)\" is not one of the token modes \(tokens.modes)")
     }
 
-    private func insert(_ board: Artboard, html: String) throws {
+    /// The caller's own values are already checked (or come from a valid board), so only automatic
+    /// placement can still put the board out of range; the error then ends with `hint`.
+    private func insert(_ board: Artboard, html: String, ifThereIsNoRoom hint: String) throws {
+        if let overflow = board.coordinateOverflow {
+            throw DocumentError.invalidValue("no room to place it automatically (\(overflow)); \(hint)")
+        }
         try files.write(html, to: board.file)
         try updateManifest { $0.artboards.append(board) }
     }
@@ -135,6 +138,54 @@ extension CanvasDocument {
 }
 
 extension Artboard {
+    /// The widest board in CSS pixels; WebKit and the snapshot bitmaps can't go much bigger.
+    public static let maxWidth: Double = 16_384
+    /// The tallest board in CSS pixels; taller than wide, for long scrolling pages.
+    public static let maxHeight: Double = 32_768
+    /// The farthest an artboard's x or y may be from the canvas origin, either way.
+    public static let maxCoordinate: Double = 1_000_000
+
+    /// Why any of the given values is out of range (0 < width ≤ `maxWidth`, 0 < height ≤ `maxHeight`,
+    /// coordinates within ±`maxCoordinate`); nil when they're all fine.
+    static func geometryProblem(x: Double?, y: Double?, width: Double?, height: Double?) -> String? {
+        [sizeProblem("width", width, limit: maxWidth), sizeProblem("height", height, limit: maxHeight),
+         coordinateProblem("x", x), coordinateProblem("y", y)]
+            .compactMap { $0 }.first
+    }
+
+    private static func sizeProblem(_ label: String, _ size: Double?, limit: Double) -> String? {
+        guard let size, !(size.isFinite && size > 0 && size <= limit) else { return nil }
+        return "\(label) must be a number greater than 0 and at most \(css(limit)), not \(css(size))"
+    }
+
+    private static func coordinateProblem(_ label: String, _ coordinate: Double?) -> String? {
+        guard let coordinate, !isWithinReach(coordinate) else { return nil }
+        return "\(label) must be a number from \(css(-maxCoordinate)) to \(css(maxCoordinate)), not \(css(coordinate))"
+    }
+
+    private static func isWithinReach(_ coordinate: Double) -> Bool {
+        coordinate.isFinite && abs(coordinate) <= maxCoordinate
+    }
+
+    /// Which coordinate is out of range and by how much, e.g. "x would be 1000080, past 1000000"; nil if neither.
+    var coordinateOverflow: String? {
+        guard let (label, value) = [("x", x), ("y", y)].first(where: { !Self.isWithinReach($0.1) }) else { return nil }
+        return "\(label) would be \(Self.css(value)), past \(Self.css(value < 0 ? -Self.maxCoordinate : Self.maxCoordinate))"
+    }
+
+    private static func css(_ value: Double) -> String {
+        ArtboardPage.cssNumber(value)
+    }
+
+    var geometryProblem: String? {
+        Self.geometryProblem(x: x, y: y, width: width, height: height)
+    }
+
+    /// The board's own token mode, or the document's.
+    public func effectiveMode(in manifest: Manifest) -> String {
+        mode ?? manifest.mode
+    }
+
     /// The id is a slug and the file is `artboards/<id>.html`, so the path can't leave the package.
     var hasCanonicalFile: Bool {
         Slug.isValid(id) && file == DocumentPath.artboard(id)

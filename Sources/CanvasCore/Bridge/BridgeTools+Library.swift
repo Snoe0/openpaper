@@ -55,7 +55,7 @@ extension BridgeTools {
                     "description": "Token name → value: a string for every mode, or an object of mode → string, e.g. {\"color.bg\": {\"light\": \"#fff\", \"dark\": \"#000\"}}.",
                     "additionalProperties": ["type": ["string", "object"]],
                 ],
-                "modes": Schema.strings("The complete list of token modes, e.g. [\"light\", \"dark\"]. Applied before tokens."),
+                "modes": Schema.strings("The complete list of token modes, e.g. [\"light\", \"dark\"]: unique names of letters, digits, _ and -. Applied before tokens."),
                 "remove": Schema.strings("Token names to remove."),
             ]),
             run: { call in

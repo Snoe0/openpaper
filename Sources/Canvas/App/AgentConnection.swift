@@ -2,7 +2,7 @@ import CanvasCore
 import Foundation
 import Observation
 
-/// The app's link to Claude Code: runs the MCP bridge (restarting it when its listener stops), and
+/// The app's link to Claude Code: runs the MCP bridge (the MCP panels offer a manual restart), and
 /// checks, adds or repairs the `canvas` MCP entry that points Claude Code at the bundled `canvas-mcp`.
 /// Observable for the MCP panels.
 @MainActor @Observable
