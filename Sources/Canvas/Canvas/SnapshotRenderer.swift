@@ -3,7 +3,8 @@ import CanvasCore
 import WebKit
 
 /// Renders artboards that have no live web view: loads the page once in a hidden window, takes a
-/// PNG at native size, then releases the web view. A page that doesn't load or answer throws, so
+/// PNG at native size (a board over 32M pixels comes back scaled down, aspect kept; see
+/// `SnapshotSize`), then releases the web view. A page that doesn't load or answer throws, so
 /// nothing blank is cached. A page that crashes here is never reloaded.
 @MainActor
 final class SnapshotRenderer {

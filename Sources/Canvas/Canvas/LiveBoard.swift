@@ -8,7 +8,9 @@ import WebKit
 /// snapshot can wait for them to land.
 @MainActor
 final class LiveBoard: NSObject {
-    static let snapshotTimeout: Duration = .seconds(5)
+    /// The largest board (16384×32768) takes WebKit up to ~3 s to snapshot even when it is plain, so
+    /// this leaves room for real content.
+    static let snapshotTimeout: Duration = .seconds(10)
     /// How long a hot-patch may take before the changes queued after it go ahead anyway.
     static let patchTimeout: Duration = .seconds(5)
 
@@ -97,16 +99,20 @@ final class LiveBoard: NSObject {
         return loaded
     }
 
-    /// A PNG of the page at its native size (1 pixel per CSS pixel), freshly rendered by WebKit.
+    /// A PNG of the page, freshly rendered by WebKit: at its native size (1 pixel per CSS pixel), or
+    /// smaller for a huge board (`SnapshotSize`). Draw it at the board's size, not its pixel size.
     /// Throws `SnapshotError.timedOut` if WebKit doesn't answer within `snapshotTimeout`.
     func pngSnapshot(nativeSize: CGSize) async throws -> Data {
-        let configuration = WKSnapshotConfiguration()
-        configuration.rect = webView.bounds
-        configuration.snapshotWidth = NSNumber(value: Double(nativeSize.width))
-        configuration.afterScreenUpdates = true
+        let size = SnapshotSize(nativeSize: nativeSize, backingScale: backingScale)
+        let configuration = size.configuration(of: webView.bounds)
         return try await withTimeout(Self.snapshotTimeout) { [webView] in
-            try PNGEncoder.png(of: try await webView.takeSnapshot(configuration: configuration), pixelSize: nativeSize)
+            try PNGEncoder.png(of: try await webView.takeSnapshot(configuration: configuration), pixelSize: size.pixelSize)
         }
+    }
+
+    /// The scale WebKit draws snapshots at: its window's screen's.
+    private var backingScale: CGFloat {
+        webView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
     }
 
     /// The page as it looks now, or nil if it hasn't loaded, isn't in a window (WebKit wouldn't paint

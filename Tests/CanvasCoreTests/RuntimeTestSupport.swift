@@ -204,7 +204,7 @@ final class MessageRecorder: NSObject, WKScriptMessageHandler {
 
 /// Waits for page loads (with a timeout) and fails the test if the web content process dies.
 @MainActor
-private final class PageNavigationWatcher: NSObject, WKNavigationDelegate {
+final class PageNavigationWatcher: NSObject, WKNavigationDelegate {
     private var continuation: CheckedContinuation<Void, Error>?
     private var timeout: Task<Void, Never>?
 
