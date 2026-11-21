@@ -52,10 +52,35 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Sources/Canvas/Presentation/*`
   - Done when: `PresentationController.present(artboard:in:)` fullscreens one artboard in a live, interactive WKWebView, fit to screen on a black backdrop; Esc exits; animations restart on enter
   - Verify: `make build`, plus manual run
-- [ ] **T8 End-to-end + install** (wave 5)
+- [x] **T8 End-to-end + install** (wave 5)
   - Files: `Tests/E2E/*`, `Examples/Demo.canvas/`, `Makefile` (install target), `README.md`
   - Done when: the E2E script drives the real `canvas-mcp` against the running app (create doc → tokens → component → 3 animated artboards → screenshot → edit component → instances update); `make install` copies the app to /Applications and the CLI to `~/.local/bin`, and prints the `claude mcp add` command (it doesn't run it); a demo doc is shipped
   - Verify: `make e2e`
+- [ ] **T9 Copy pointer** (added 2026-11-21, after the final-review fixes)
+  - Right-click any element on any board, at any zoom, without entering inspect mode. A board showing a snapshot loads live for that moment. The element under the cursor stays outlined while the menu is open.
+  - Menu items:
+    - **Copy pointer:** copies `canvas:<board id> > <selector>` (e.g. `canvas:hero > section.pricing > a.cta`). It uses the same selector builder as inspect mode.
+    - **Copy board pointer:** copies `canvas:<board id>`.
+    - **Copy HTML:** copies the element's outerHTML.
+  - Right-clicking a board's title or empty space offers Copy board pointer only. Inside an inspected board this menu replaces WebKit's own.
+  - New MCP tool `get_element(pointer)`. It returns the board, the selector, the outerHTML, the box in board CSS pixels and the key computed styles. For a board pointer it returns the board's info. If nothing matches anymore, it says the pointer is stale and why (board gone, or no element matches). The server instructions explain pointers.
+  - Pointer parsing is shared, so the notes feature can add `canvas:image/<id>` and `canvas:comment/<id>` later.
+  - Files: `Sources/CanvasCore/Canvas/Pointer.swift` (new), `Sources/CanvasCore/Bridge/*`, `Sources/CanvasCore/Resources/runtime.js`, `Sources/Canvas/Canvas/*`, tests, plus an E2E step.
+  - Done when: right-click → Copy pointer on a canvas board at 30% puts the pointer on the clipboard; `get_element` with that pointer returns the element's HTML through `canvas-mcp`; a pointer to a removed element is reported as stale.
+  - Verify: `make test`, `make e2e`, plus a manual right-click check
+- [ ] **T10 Huge-board snapshots** (added 2026-11-21; you picked "Smaller snapshots")
+  - WebKit ignores `snapshotWidth` and renders at the screen's backing scale. Above roughly 400M device pixels it returns a transparent image (e.g. 4096×32768, or 8192×16384) or an error (16384×16384).
+  - Fix: snapshot a large board in tiles that each stay well under that limit, and draw them into one downscaled bitmap. The output is capped at about 32M pixels, so the biggest boards come out at reduced resolution, never blank. Small boards keep today's single snapshot at 1 px per CSS px.
+  - This applies to canvas snapshots and to the MCP `screenshot`.
+  - Files: `Sources/Canvas/Canvas/LiveBoard.swift` (`pngSnapshot`, `PNGEncoder`), plus a new small tiling helper in CanvasCore with unit tests for the tile/scale math.
+  - Done when: 16384×32768, 8192×16384 and 4096×32768 boards render with visible content top to bottom; a 1440×900 board is unchanged.
+  - Verify: `make test`, plus a WK test or manual check on a 16384×32768 board
+- [ ] **T11 Snapshots wait for entrance animations** (added 2026-11-21; you picked "Wait for animations (Recommended)")
+  - Today a snapshot is taken 250 ms after load, so fade-ins and slide-ups are caught halfway.
+  - Fix: `runtime.js` gets `Canvas.settled()`, which resolves once every finite Web Animation (CSS animations and transitions included) has finished, ignoring infinite ones, capped at 3 s. The snapshot path awaits it instead of the fixed 250 ms.
+  - Files: `Sources/CanvasCore/Resources/runtime.js`, `Sources/Canvas/Canvas/SnapshotRenderer.swift` (and wherever else the settle lives), tests.
+  - Done when: a board with a 1 s fade-in snapshots fully visible; a board with only a looping animation snapshots within about 250 ms; a 10 s animation snapshots at about 3 s.
+  - Verify: `make test` (runtime WK test), `make e2e`
 
 ### Out of scope for v1
 Manual property editing, pen/vector tools, code export, undo history (keep docs in git), cloud, teams.
@@ -63,10 +88,34 @@ Manual property editing, pen/vector tools, code export, undo history (keep docs 
 ### Git
 Initial commit on `main`, then a `v1` branch. One commit per task after both reviews pass. No push.
 
-### Open notes (fold into Review)
+## Review
+
+### Built vs plan
+All of T1–T8 shipped as planned, one commit per task after spec and quality reviews, plus one fix commit for T4 (clipping and text layout below 100%) and one for the final review (geometry caps, boards stay on their own page, DEBUG-only dev hooks, mode-name validation, race-free deletes, select only in inspect mode). Branch is `feat/v1` (plan said `v1`). Verified: `make test` (370 tests), Release build, `make e2e` twice, `make install` into a scratch folder.
+
+### Deviations from the plan
+- `make install` symlinks the `canvas-mcp` CLI into the bin folder instead of copying it, so it always matches the installed app.
+- The snapshot cache lives under `~/Library/Caches/<bundle id>/Snapshots`, so dev and installed builds don't share it.
+- `PageHost` (new): below 100% a page lays out at board size with pageZoom 1 and is scaled by the canvas, because WebKit's 9 px minimum font inflated text. Presentation uses it too.
+- Live web views are capped by a pixel budget (6 MP below 100%) on top of the LRU count; the inspected/kept board, else the nearest, is always live. Picked by you: "Pixel budget (Recommended)".
+- Artboards are capped at 16384 px wide and 32768 px high (picked by you: "Raise height only", "32768 (Recommended)"), with positions within ±1,000,000. Docs that break these, or use mode names outside `[A-Za-z0-9_-]`, are refused as malformed.
+
+### Open items
+- DevRemote click doesn't select a board (dev tooling only; same before the fix commits).
+- Presentation after the PageHost change wasn't screenshotted: check by hand (present Website → Hero).
+- Snapshot cache is unbounded, and PNG writes happen on the main thread.
+- 3 MP budget lever if memory matters: 6 website boards at 30% use 407 MB vs 223 MB before the budget.
+- Small cleanups: `HTTPRequest.parse` is used only by tests; `placeholder.txt` left over; the version string lives in 3 places.
+- The old `~/Library/Caches/Canvas` folder is orphaned; you can delete it.
+- `insert` picks the new id and writes its HTML from the in-memory manifest, so an outside edit that just added a board with the same id could have its file overwritten (same race class as the delete fix; follow-up).
+- In a presentation, a link opened from the keyboard (Tab, then Enter) no longer opens the browser: macOS gives no public way to tell it apart from a script's `a.click()`, so only real mouse clicks open links. The E2E step for scripted clicks is a smoke test only; the click check is covered by unit tests and a manual measurement.
+- `Workspace.adopt(_:)` is now only called from DEBUG code; no unit test for an empty `CANVAS_APP_BUNDLE_ID` (the CLI has no test target).
+
+### Accepted limitations and notes per task
 - T3 minors accepted: held media rejects page's `play()` with AbortError; detached `new Audio()` not held; declarative/closed pre-existing shadow roots not tracked; restart fires animationcancel/start; interval drift; branching component cycles bounded only by depth cap; one-shots with different keyframes bounded by 200 cap; untracked animation's finish handler can still prune (one-line guard).
 - T5 minors: small rejected request may surface as reset; 60 s idle timeout also closes authenticated keep-alive (race → networkConnectionLost); `testReportsARejectedTokenAsSuch` should set an invalid `CANVAS_APP_BUNDLE_ID`; launch timeout cached 30 s; deprecated `String(cString:)` in BridgeSocketSupport.swift:122.
-- T6 must: offer a bridge restart when `BridgeServer` stops after listener failure (status clears, nothing restarts).
+- T6 must (done in 5a38785): offer a bridge restart when `BridgeServer` stops after listener failure.
 - T7 accepted limitations: an app-modal alert opened during a presentation sits behind the presentation window; with several displays, a document window on another screen can't take typing while presenting; height-limited boards can show ≤2 pt black bands (PageFit whole-point width); edits reload the page (animations restart). Esc-repeat swallowing and key take-back not exercised at runtime by the agent; check by hand.
 - T5 flake: `BridgeServerTests.testReleasingAStartedServerStopsIt` failed once under load during T6's run (passed 3/3 alone).
 - T6 notes: Connect status reads `~/.claude.json` (or `$CLAUDE_CONFIG_DIR`) — Claude Code's internal format; unreadable → "Unknown". Token value inline edit + delete kept (beyond "add token"). Background tabs keep their live web views (memory; revisit). Not exercised live by agents: Present click, Connect/Reconnect (would write the Claude config), Restart bridge, Tab between token fields.
+- T8 (92b764e): snapshot cache moved to `~/Library/Caches/<bundle id>/Snapshots`, so the old `~/Library/Caches/Canvas` is orphaned (user may delete it). `make app-path` still uses `abspath` (breaks with spaces; print-only). Two e2e runs started at the same instant can both pass the pgrep check. The demo's `itinerary-dark.html` duplicates `itinerary.html` (only the mode differs).

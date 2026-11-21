@@ -11,3 +11,7 @@
 - **Extra UI scope:** pages, document tabs (+ Dashboard), Connect agent button. No per-page canvas background. (2026-11-20)
 - **Look:** dark layout in the style of Paper, with our own styling. (2026-11-20)
 - **Live boards below 100%:** limit by a pixel budget (~6 MP total board area); the rest show snapshots. (2026-11-20)
+- **Artboard size cap:** width at most 16384, height at most 32768 (tall full-page mockups fit). (2026-11-21)
+- **Copy pointer (v1):** right-click any element on any board at any zoom: Copy pointer (`canvas:<board> > <selector>`), Copy board pointer, Copy HTML, with a hover outline; Claude looks pointers up with `get_element`. Images and comments get pointers in the notes feature. (2026-11-21)
+- **Huge boards:** snapshot them at reduced resolution so they never go blank; no area cap. (2026-11-21)
+- **Snapshot timing:** wait for the page's finite animations to finish (cap ~3 s, loops ignored) before snapshotting. (2026-11-21)
