@@ -24,15 +24,15 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
 
 ### Tasks
 
-- [ ] **T1 Scaffold** (wave 1)
+- [x] **T1 Scaffold** (wave 1)
   - Files: `project.yml`, `Makefile`, `.gitignore`, `README.md`, stub `Sources/{CanvasCore,Canvas,canvas-mcp}/`, `Tests/CanvasCoreTests/`
   - Done when: xcodegen generates the app, a CanvasCore framework, the canvas-mcp CLI and the tests; `make build` / `make test` / `make run` work; an empty window opens
   - Verify: `make build && make test`
-- [ ] **T2 Document model + store** (wave 2, after T1)
+- [x] **T2 Document model + store** (wave 2, after T1)
   - Files: `Sources/CanvasCore/Document/*`, `Tests/CanvasCoreTests/Document*`
   - Done when: create/load/save the package; CRUD for pages, artboards, components and tokens; the token→CSS compiler handles modes; the HTML assembler builds a full page per artboard; the file watcher emits typed change events (artboard/component/tokens/manifest); `CLAUDE.md` template is written on create
   - Verify: `make test`
-- [ ] **T3 Web runtime (`runtime.js`)** (wave 2, parallel with T2, disjoint files)
+- [x] **T3 Web runtime (`runtime.js`)** (wave 2, parallel with T2, disjoint files)
   - Files: `Sources/CanvasCore/Resources/runtime.js`, `Tests/CanvasCoreTests/Runtime*`
   - Done when: the `window.Canvas` API has `defineComponents(map)` (props + slots, hot re-render of instances), `setTokens(css)`, `setMode(m)`, `pause()`/`resume()`/`restart()` (Web Animations, media, rAF + timer gate), `inspect(on)` (hover highlight, click → selector + outerHTML posted to `webkit.messageHandlers.canvas`), and console/error capture posted to Swift
   - Verify: `make test` (WKWebView-backed XCTest)
