@@ -48,7 +48,7 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Sources/Canvas/App/*`, `Sources/Canvas/Sidebar/*`
   - Done when: document tabs and a Dashboard tab (recent documents, new/open); left sidebar with a Design/Tokens toggle (pages, artboards, components; token values, add token, global mode switch); tool rail; right panel (zoom, board info, MCP "Connect agent" button that runs `claude mcp add` after a confirm dialog, then shows live status and last call); app implements `CanvasController` and starts the bridge; menu commands and shortcuts; "Present" wired to T7's API
   - Verify: `make build`, plus manual run
-- [ ] **T7 Presentation mode** (wave 4, parallel with T6, disjoint files)
+- [x] **T7 Presentation mode** (wave 4, parallel with T6, disjoint files)
   - Files: `Sources/Canvas/Presentation/*`
   - Done when: `PresentationController.present(artboard:in:)` fullscreens one artboard in a live, interactive WKWebView, fit to screen on a black backdrop; Esc exits; animations restart on enter
   - Verify: `make build`, plus manual run
@@ -67,3 +67,5 @@ Initial commit on `main`, then a `v1` branch. One commit per task after both rev
 - T3 minors accepted: held media rejects page's `play()` with AbortError; detached `new Audio()` not held; declarative/closed pre-existing shadow roots not tracked; restart fires animationcancel/start; interval drift; branching component cycles bounded only by depth cap; one-shots with different keyframes bounded by 200 cap; untracked animation's finish handler can still prune (one-line guard).
 - T5 minors: small rejected request may surface as reset; 60 s idle timeout also closes authenticated keep-alive (race → networkConnectionLost); `testReportsARejectedTokenAsSuch` should set an invalid `CANVAS_APP_BUNDLE_ID`; launch timeout cached 30 s; deprecated `String(cString:)` in BridgeSocketSupport.swift:122.
 - T6 must: offer a bridge restart when `BridgeServer` stops after listener failure (status clears, nothing restarts).
+- T7 accepted limitations: an app-modal alert opened during a presentation sits behind the presentation window; with several displays, a document window on another screen can't take typing while presenting; height-limited boards can show ≤2 pt black bands (PageFit whole-point width); edits reload the page (animations restart). Esc-repeat swallowing and key take-back not exercised at runtime by the agent; check by hand.
+- T5 flake: `BridgeServerTests.testReleasingAStartedServerStopsIt` failed once under load during T6's run (passed 3/3 alone).
