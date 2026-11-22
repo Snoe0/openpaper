@@ -56,7 +56,7 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Tests/E2E/*`, `Examples/Demo.canvas/`, `Makefile` (install target), `README.md`
   - Done when: the E2E script drives the real `canvas-mcp` against the running app (create doc → tokens → component → 3 animated artboards → screenshot → edit component → instances update); `make install` copies the app to /Applications and the CLI to `~/.local/bin`, and prints the `claude mcp add` command (it doesn't run it); a demo doc is shipped
   - Verify: `make e2e`
-- [ ] **T9 Copy pointer** (added 2026-11-21, after the final-review fixes)
+- [x] **T9 Copy pointer** (added 2026-11-21, after the final-review fixes)
   - Right-click any element on any board, at any zoom, without entering inspect mode. A board showing a snapshot loads live for that moment. The element under the cursor stays outlined while the menu is open.
   - Menu items:
     - **Copy pointer:** copies `canvas:<board id> > <selector>` (e.g. `canvas:hero > section.pricing > a.cta`). It uses the same selector builder as inspect mode.
@@ -68,14 +68,14 @@ Native macOS app (Swift 6.3, AppKit, macOS 15+). An infinite canvas of artboards
   - Files: `Sources/CanvasCore/Canvas/Pointer.swift` (new), `Sources/CanvasCore/Bridge/*`, `Sources/CanvasCore/Resources/runtime.js`, `Sources/Canvas/Canvas/*`, tests, plus an E2E step.
   - Done when: right-click → Copy pointer on a canvas board at 30% puts the pointer on the clipboard; `get_element` with that pointer returns the element's HTML through `canvas-mcp`; a pointer to a removed element is reported as stale.
   - Verify: `make test`, `make e2e`, plus a manual right-click check
-- [ ] **T10 Huge-board snapshots** (added 2026-11-21; you picked "Smaller snapshots")
-  - WebKit ignores `snapshotWidth` and renders at the screen's backing scale. Above roughly 400M device pixels it returns a transparent image (e.g. 4096×32768, or 8192×16384) or an error (16384×16384).
-  - Fix: snapshot a large board in tiles that each stay well under that limit, and draw them into one downscaled bitmap. The output is capped at about 32M pixels, so the biggest boards come out at reduced resolution, never blank. Small boards keep today's single snapshot at 1 px per CSS px.
+- [x] **T10 Huge-board snapshots** (added 2026-11-21; you picked "Smaller snapshots")
+  - Above roughly 400M device pixels WebKit returned a transparent image (e.g. 4096×32768, or 8192×16384) or an error (16384×16384), because the snapshot always asked for native width.
+  - Shipped (no tiles needed): a large board is snapshotted once with a smaller `snapshotWidth`, so the output stays under about 32M pixels (`SnapshotSize`). The biggest boards come out at reduced resolution, never blank. Small boards keep 1 px per CSS px.
   - This applies to canvas snapshots and to the MCP `screenshot`.
-  - Files: `Sources/Canvas/Canvas/LiveBoard.swift` (`pngSnapshot`, `PNGEncoder`), plus a new small tiling helper in CanvasCore with unit tests for the tile/scale math.
+  - Files: `Sources/Canvas/Canvas/LiveBoard.swift` (`pngSnapshot`), plus `SnapshotSize` in CanvasCore with unit tests for the scale math.
   - Done when: 16384×32768, 8192×16384 and 4096×32768 boards render with visible content top to bottom; a 1440×900 board is unchanged.
   - Verify: `make test`, plus a WK test or manual check on a 16384×32768 board
-- [ ] **T11 Snapshots wait for entrance animations** (added 2026-11-21; you picked "Wait for animations (Recommended)")
+- [x] **T11 Snapshots wait for entrance animations** (added 2026-11-21; you picked "Wait for animations (Recommended)")
   - Today a snapshot is taken 250 ms after load, so fade-ins and slide-ups are caught halfway.
   - Fix: `runtime.js` gets `Canvas.settled()`, which resolves once every finite Web Animation (CSS animations and transitions included) has finished, ignoring infinite ones, capped at 3 s. The snapshot path awaits it instead of the fixed 250 ms.
   - Files: `Sources/CanvasCore/Resources/runtime.js`, `Sources/Canvas/Canvas/SnapshotRenderer.swift` (and wherever else the settle lives), tests.
@@ -91,7 +91,7 @@ Initial commit on `main`, then a `v1` branch. One commit per task after both rev
 ## Review
 
 ### Built vs plan
-All of T1–T8 shipped as planned, one commit per task after spec and quality reviews, plus one fix commit for T4 (clipping and text layout below 100%) and one for the final review (geometry caps, boards stay on their own page, DEBUG-only dev hooks, mode-name validation, race-free deletes, select only in inspect mode). Branch is `feat/v1` (plan said `v1`). Verified: `make test` (370 tests), Release build, `make e2e` twice, `make install` into a scratch folder.
+All of T1–T8 shipped as planned, one commit per task after spec and quality reviews, plus one fix commit for T4 (clipping and text layout below 100%) and one for the final review (geometry caps, boards stay on their own page, DEBUG-only dev hooks, mode-name validation, race-free deletes, select only in inspect mode). Branch is `feat/v1` (plan said `v1`). Verified: `make test` (370 tests), Release build, `make e2e` twice, `make install` into a scratch folder. Then T9, T10 and T11, plus a second final-review fix round. Verified again: `make test` (419 tests), Release build, `make e2e` twice.
 
 ### Deviations from the plan
 - `make install` symlinks the `canvas-mcp` CLI into the bin folder instead of copying it, so it always matches the installed app.
@@ -109,6 +109,10 @@ All of T1–T8 shipped as planned, one commit per task after spec and quality re
 - The old `~/Library/Caches/Canvas` folder is orphaned; you can delete it.
 - `insert` picks the new id and writes its HTML from the in-memory manifest, so an outside edit that just added a board with the same id could have its file overwritten (same race class as the delete fix; follow-up).
 - In a presentation, a link opened from the keyboard (Tab, then Enter) no longer opens the browser: macOS gives no public way to tell it apart from a script's `a.click()`, so only real mouse clicks open links. The E2E step for scripted clicks is a smoke test only; the click check is covered by unit tests and a manual measurement.
+- T10 (acb1bb4) shipped without tiles: WebKit does honor `snapshotWidth` (the earlier "ignored" finding came from always passing the native width), so one reduced snapshot is enough. Boards between 32M and ~100M px used to snapshot at full resolution and now come out smaller (e.g. 8192×8192 → 5792×5792). Snapshot timeout is now 10 s. Follow-ups: blank PNGs cached by older builds stay until the board changes or the cache is cleared; PNG encode still runs on the main thread.
+- T9 (10b6754): Copy pointer, Copy board pointer, Copy HTML, and `get_element`. Live check at 30%: the pointer landed on a private pasteboard (`CANVAS_PASTEBOARD`, DEBUG only). Right-clicking empty canvas between boards opens no menu, since there's no board to point to; a board's title and page background offer Copy board pointer. Pointers use positional selectors (`div:nth-of-type(1)`), so they're for short-term use; the MCP instructions say so. DevRemote lost `eval` and its in-app screen capture. Follow-ups: a left-click or Esc during the lookup (up to 1.5 s) doesn't cancel the menu; each right-click serializes the element's full outerHTML; a slow live page can take up to ~15 s to answer `get_element`; `get_element` on a board that isn't live loads it without a window and gives up after 5 s, while `screenshot` waits 20 s; a page that hangs after loading keeps its web view after a timeout.
+- T11 (1b550f5): `Canvas.settled()` waits for finite animations and transitions, including inside components and chained on `animationend`, capped at 3 s. Measured in the real hidden snapshot window: static 0.03 s, looping 0.09 s, 1 s fade-in 1.02 s. Not waited for: animations a page starts later from its own timers.
+- Final-review fixes: live `screenshot` also waits for animations (one shared `LiveBoard.waitUntilSettled`); a right-click no longer overwrites a good cached snapshot; a new board you pan away from is cached after its animations settle; a board deleted mid-query reports a stale pointer; the 20000-char HTML cap is defined once per language; the pointer menu stays inside the visible canvas. Follow-ups: a board that is still settling can be rendered twice (harmless, wasted work); the pixel budget can run over for up to ~3 s while a board settles; the cached PNG is read on the main thread on each suspend.
 - `Workspace.adopt(_:)` is now only called from DEBUG code; no unit test for an empty `CANVAS_APP_BUNDLE_ID` (the CLI has no test target).
 
 ### Accepted limitations and notes per task
