@@ -538,6 +538,9 @@
 
   // MARK: - Inspect
 
+  // The most HTML a selection message or `Canvas.describe` carries (`PageElement.maxHTMLLength` in Swift).
+  const MAX_OUTER_HTML_LENGTH = 20000;
+
   // The host's inline !important styles beat author rules; the closed shadow root keeps the box out of reach.
   const OVERLAY_HOST_STYLE = [
     "all:initial",
@@ -590,7 +593,7 @@
     type: "select",
     selector: selector(element),
     tag: element.localName,
-    outerHTML: truncate(element.outerHTML, 20000),
+    outerHTML: truncate(element.outerHTML, MAX_OUTER_HTML_LENGTH),
     text: truncate(element.innerText ?? element.textContent ?? "", 2000),
     rect: rectOf(element),
   });
@@ -681,8 +684,6 @@
     return Object.fromEntries(KEY_STYLES.map((property) => [property, computed.getPropertyValue(property)]));
   };
 
-  const MAX_DESCRIBED_HTML_LENGTH = 20000;
-
   const elementInfo = (element) => ({
     selector: selector(element),
     outerHTML: element.outerHTML,
@@ -713,8 +714,8 @@
     if (!matches) return { invalidSelector: true };
     if (matches.length === 0) return null;
     const info = { ...elementInfo(matches[0]), matches: matches.length };
-    if (info.outerHTML.length <= MAX_DESCRIBED_HTML_LENGTH) return info;
-    return { ...info, outerHTML: truncate(info.outerHTML, MAX_DESCRIBED_HTML_LENGTH), truncated: true };
+    if (info.outerHTML.length <= MAX_OUTER_HTML_LENGTH) return info;
+    return { ...info, outerHTML: truncate(info.outerHTML, MAX_OUTER_HTML_LENGTH), truncated: true };
   };
 
   // MARK: - Settled (what an off-screen snapshot waits for)

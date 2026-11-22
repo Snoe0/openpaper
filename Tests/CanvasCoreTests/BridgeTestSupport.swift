@@ -13,6 +13,8 @@ final class MockCanvasController: CanvasController {
     var elements: [String: [String: PageElement]] = [:]
     /// Selectors every page rejects as malformed.
     var invalidSelectors: Set<String> = []
+    /// Runs while a page is being asked for an element, e.g. to delete the board or fail.
+    var whileAnswering: (() throws -> Void)?
     private(set) var focusedArtboards: [String] = []
     private(set) var screenshotRequests: [String] = []
     private(set) var elementRequests: [(artboardID: String, selector: String)] = []
@@ -41,6 +43,7 @@ final class MockCanvasController: CanvasController {
     func element(onArtboard artboardID: String, matching selector: String) async throws -> PageElement? {
         elementRequests.append((artboardID, selector))
         if invalidSelectors.contains(selector) { throw PageElementError.invalidSelector }
+        try whileAnswering?()
         return elements[artboardID]?[selector]
     }
 

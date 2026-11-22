@@ -125,10 +125,12 @@ final class CanvasViewController: NSViewController {
         return try await renderer.render(board)
     }
 
-    /// Nil when the board isn't live, the window is covered (WebKit may not answer), or the snapshot fails.
+    /// Taken once the page's entrance animations finish. Nil when the board isn't live, the window is covered
+    /// (WebKit may not answer), or the snapshot fails.
     private func liveSnapshot(of id: String, size: CGSize) async -> Data? {
         guard isWindowVisible, pool.live.contains(id), let live = liveBoards[id] else { return nil }
         await live.waitForChanges()
+        try? await live.waitUntilSettled()
         guard liveBoards[id] === live, live.webView.superview != nil else { return nil }
         return await live.currentLook(nativeSize: size)
     }

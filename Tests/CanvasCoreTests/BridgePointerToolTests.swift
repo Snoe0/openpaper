@@ -41,7 +41,7 @@ final class BridgePointerToolTests: XCTestCase {
     func testCutHTMLAndAmbiguousSelectorsAreFlagged() async throws {
         let controller = try makeController()
         var long = cta
-        long.outerHTML = String(repeating: "x", count: 20_000)
+        long.outerHTML = String(repeating: "x", count: PageElement.maxHTMLLength)
         long.truncated = true
         long.matches = 3
         controller.elements["hero"]?["a"] = long
@@ -60,7 +60,7 @@ final class BridgePointerToolTests: XCTestCase {
 
         let message = try await client.failure("get_element", ["pointer": "canvas:hero > a["])
 
-        XCTAssertTrue(message.contains("isn't a valid CSS selector"), message)
+        XCTAssertTrue(message.contains("\"a[\" isn't a valid CSS selector"), message)
         XCTAssertFalse(message.contains("stale"), message)
     }
 
@@ -98,13 +98,43 @@ final class BridgePointerToolTests: XCTestCase {
         XCTAssertTrue(controller.elementRequests.isEmpty)
     }
 
+    func testABoardDeletedWhileItsPageIsAskedMakesThePointerStale() async throws {
+        let controller = try makeController()
+        controller.whileAnswering = {
+            try controller.activeDocument?.deleteArtboard(id: "hero")
+            throw ToolError("Artboard hero no longer exists.")
+        }
+        let client = MCPTestClient(controller: controller)
+
+        let message = try await client.failure("get_element", ["pointer": "canvas:hero > section > a.cta"])
+
+        XCTAssertTrue(message.contains("The pointer canvas:hero > section > a.cta is stale"), message)
+        XCTAssertTrue(message.contains("there is no artboard \"hero\""), message)
+    }
+
+    func testAPageThatFailsWhileItsBoardStillExistsKeepsItsOwnError() async throws {
+        let controller = try makeController()
+        controller.whileAnswering = { throw ToolError("Artboard hero's page didn't answer within 5 s.") }
+        let client = MCPTestClient(controller: controller)
+
+        let message = try await client.failure("get_element", ["pointer": "canvas:hero > section > a.cta"])
+
+        XCTAssertTrue(message.contains("didn't answer"), message)
+        XCTAssertFalse(message.contains("stale"), message)
+    }
+
+    func testTheToolGivesTheHTMLCap() throws {
+        let description = try XCTUnwrap(BridgeTools.named("get_element")?.description)
+        XCTAssertTrue(description.contains("at most \(PageElement.maxHTMLLength) characters"), description)
+    }
+
     func testAPointerWhoseSelectorMatchesNothingIsStale() async throws {
         let client = MCPTestClient(controller: try makeController())
 
         let message = try await client.failure("get_element", ["pointer": "canvas:hero > section > a.gone"])
 
         XCTAssertTrue(message.contains("stale"), message)
-        XCTAssertTrue(message.contains("no element on artboard \"hero\" matches section > a.gone"), message)
+        XCTAssertTrue(message.contains("no element on artboard \"hero\" matches \"section > a.gone\""), message)
     }
 
     func testAGarbledPointerExplainsTheFormat() async throws {

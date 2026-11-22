@@ -95,7 +95,7 @@ final class RuntimePointerTests: XCTestCase {
         }
     }
 
-    /// `get_element` answers with at most 20000 characters of HTML; a right-click copies all of it.
+    /// `get_element` answers with at most `PageElement.maxHTMLLength` characters of HTML; a right-click copies all of it.
     func testDescribeCapsLongHTMLButElementAtKeepsItWhole() async throws {
         let long = "<p id=\"long\" style=\"margin:0\">" + String(repeating: "x", count: 30_000) + "</p>"
         let page = try await RuntimePage.open(body: long, components: components)
@@ -103,7 +103,7 @@ final class RuntimePointerTests: XCTestCase {
         let described = try await page.js("return Canvas.describe('#long')") as? [String: Any]
         let atPoint = try await page.js("return Canvas.elementAt(20, 12)") as? [String: Any]
 
-        XCTAssertEqual((described?["outerHTML"] as? String)?.count, 20_000)
+        XCTAssertEqual((described?["outerHTML"] as? String)?.count, PageElement.maxHTMLLength)
         XCTAssertEqual(described?["truncated"] as? Bool, true)
         XCTAssertEqual((atPoint?["outerHTML"] as? String)?.count, long.count)
         XCTAssertNil(atPoint?["truncated"])

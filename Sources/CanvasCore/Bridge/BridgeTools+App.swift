@@ -20,7 +20,7 @@ extension BridgeTools {
         BridgeTool(
             name: "get_element",
             description: "Resolve a pointer the user copied from Canvas: for canvas:<artboard id> > <CSS selector>, the first "
-                + "matching element's HTML (at most 20000 characters; \"truncated\" when cut), how many elements match, its box "
+                + "matching element's HTML (at most \(PageElement.maxHTMLLength) characters; \"truncated\" when cut), how many elements match, its box "
                 + "(CSS pixels relative to the page's viewport, i.e. the board's top-left while unscrolled) and key computed "
                 + "styles; for canvas:<artboard id>, the artboard.",
             inputSchema: Schema.object(
@@ -57,22 +57,33 @@ extension BridgeTools {
 
     /// The artboard or element `pointer` names; a pointer whose target is gone fails, saying why.
     private static func resolve(_ pointer: CanvasPointer, _ call: ToolCall) async throws -> ToolResult {
-        let document = try call.document()
-        guard let board = try? document.artboard(id: pointer.boardID) else {
-            throw ToolError(stale(pointer, "there is no artboard \"\(pointer.boardID)\" in the open document"))
-        }
+        let board = try artboard(of: pointer, call)
         guard case .element(_, let selector) = pointer else { return try .json(board) }
-        guard let element = try await element(matching: selector, on: board, call) else {
-            throw ToolError(stale(pointer, "no element on artboard \"\(board.id)\" matches \(selector)"))
+        guard let element = try await element(matching: selector, of: pointer, call) else {
+            throw ToolError(stale(pointer, "no element on artboard \"\(board.id)\" matches \"\(selector)\""))
         }
         return try .json(ElementReport(pointer: pointer.description, board: .init(id: board.id, name: board.name), element: element))
     }
 
-    private static func element(matching selector: String, on board: Artboard, _ call: ToolCall) async throws -> PageElement? {
+    /// The pointer's artboard in the open document; a pointer to a missing one is stale.
+    private static func artboard(of pointer: CanvasPointer, _ call: ToolCall) throws -> Artboard {
+        let document = try call.document()
+        guard let board = try? document.artboard(id: pointer.boardID) else {
+            throw ToolError(stale(pointer, "there is no artboard \"\(pointer.boardID)\" in the open document"))
+        }
+        return board
+    }
+
+    /// Asks the pointer's board for `selector`. A board deleted while its page was being asked makes
+    /// the pointer stale; any other failure is reported as it is.
+    private static func element(matching selector: String, of pointer: CanvasPointer, _ call: ToolCall) async throws -> PageElement? {
         do {
-            return try await call.controller.element(onArtboard: board.id, matching: selector)
+            return try await call.controller.element(onArtboard: pointer.boardID, matching: selector)
         } catch PageElementError.invalidSelector {
-            throw ToolError("\(selector) isn't a valid CSS selector.")
+            throw ToolError("\"\(selector)\" isn't a valid CSS selector.")
+        } catch {
+            _ = try artboard(of: pointer, call)
+            throw error
         }
     }
 

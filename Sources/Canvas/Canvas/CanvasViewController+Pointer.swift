@@ -55,15 +55,15 @@ extension CanvasViewController {
     }
 
     /// Opens the menu once the current task step is done (the menu runs its own event loop until it closes, which
-    /// shouldn't happen inside a task), where the right-click landed on the board now; not if a newer right-click
-    /// took over, the canvas left its window, or the board is gone. Then the outline goes and the board may stop
-    /// being live.
+    /// shouldn't happen inside a task), where the right-click landed on the board now (see `menuPoint`); not if a
+    /// newer right-click took over, the canvas left its window, or the board is gone. Then the outline goes and the
+    /// board may stop being live.
     private func openPointerMenu(for request: PointerRequest, element: PageElement?) {
         RunLoop.main.perform { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.pointing === request else { return }
                 let canvasView = self.canvasView
-                if canvasView.window != nil, let point = canvasView.screenPoint(onBoard: request.boardID, at: request.point) {
+                if canvasView.window != nil, let point = self.menuPoint(for: request) {
                     canvasView.outlinedElement = element.map { (request.boardID, $0.box.cgRect) }
                     self.pointerMenu(board: request.boardID, element: element).popUp(positioning: nil, at: point, in: canvasView)
                     canvasView.outlinedElement = nil
@@ -71,6 +71,12 @@ extension CanvasViewController {
                 self.finishPointing(request)
             }
         }
+    }
+
+    /// Where the right-click landed on the board now, kept inside the visible canvas in case the board was panned
+    /// away during the lookup.
+    private func menuPoint(for request: PointerRequest) -> CGPoint? {
+        canvasView.screenPoint(onBoard: request.boardID, at: request.point).map { canvasView.visibleRect.clamping($0) }
     }
 
     private func finishPointing(_ request: PointerRequest) {
@@ -160,6 +166,13 @@ enum PageQueryError: LocalizedError {
 
 private extension ElementRect {
     var cgRect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
+}
+
+private extension CGRect {
+    /// The nearest point to `point` inside the rect.
+    func clamping(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: min(max(point.x, minX), maxX), y: min(max(point.y, minY), maxY))
+    }
 }
 
 /// Where Copy puts text: the general pasteboard. In Debug builds `CANVAS_PASTEBOARD=<name>` uses a private named

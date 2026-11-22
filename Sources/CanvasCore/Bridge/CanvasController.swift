@@ -56,6 +56,9 @@ public struct SelectedElement: Codable, Equatable, Sendable {
 
 /// An element on an artboard's page, as the page's runtime describes it (`Canvas.elementAt`, `Canvas.describe`).
 public struct PageElement: Codable, Equatable, Sendable {
+    /// The most HTML the runtime hands over for one element (`MAX_OUTER_HTML_LENGTH` in runtime.js).
+    public static let maxHTMLLength = 20_000
+
     /// A unique path to the element, as inspect mode builds it.
     public var selector: String
     public var outerHTML: String
@@ -65,7 +68,7 @@ public struct PageElement: Codable, Equatable, Sendable {
     public var styles: [String: String]
     /// How many elements the selector matched (`Canvas.describe` only); this one is the first.
     public var matches: Int?
-    /// True when `outerHTML` was cut short (`Canvas.describe` keeps at most 20000 characters).
+    /// True when `outerHTML` was cut short (`Canvas.describe` keeps at most `maxHTMLLength` characters).
     public var truncated: Bool?
 
     public init(selector: String, outerHTML: String, box: ElementRect, styles: [String: String], matches: Int? = nil, truncated: Bool? = nil) {
@@ -97,7 +100,7 @@ public enum PageElementError: Error, Equatable {
 extension PageElementError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .invalidSelector: "The selector isn't a valid CSS selector."
+        case .invalidSelector: "That isn't a valid CSS selector."
         case .unreadable: "The page's answer couldn't be read."
         }
     }

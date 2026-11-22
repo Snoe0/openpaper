@@ -13,6 +13,10 @@ final class LiveBoard: NSObject {
     static let snapshotTimeout: Duration = .seconds(10)
     /// How long a hot-patch may take before the changes queued after it go ahead anyway.
     static let patchTimeout: Duration = .seconds(5)
+    /// `Canvas.settled()` gives up after 3 s; this bounds a page that never answers.
+    static let settleTimeout: Duration = .seconds(4)
+    /// The wait instead, when the page can't run `Canvas.settled()`.
+    static let fallbackSettleTime: Duration = .milliseconds(250)
 
     let artboardID: String
     let webView: ArtboardWebView
@@ -97,6 +101,21 @@ final class LiveBoard: NSObject {
         let loaded = await withCheckedContinuation { loadWaiters.append($0) }
         timer.cancel()
         return loaded
+    }
+
+    /// Waits for the page's web fonts and entrance animations (`Canvas.settled()`), so a snapshot doesn't catch
+    /// them halfway. A page that throws gets the short fallback wait; one that doesn't answer is given up on
+    /// after `settleTimeout`.
+    func waitUntilSettled() async throws {
+        do {
+            try await withTimeout(Self.settleTimeout) { [webView] in
+                _ = try await webView.callAsyncJavaScript("await Canvas.settled()", arguments: [:], in: nil, contentWorld: .page)
+            }
+        } catch SnapshotError.timedOut {
+            return
+        } catch {
+            try await Task.sleep(for: Self.fallbackSettleTime)
+        }
     }
 
     /// A PNG of the page, freshly rendered by WebKit: at its native size (1 pixel per CSS pixel), or

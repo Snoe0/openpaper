@@ -1,3 +1,4 @@
+import CanvasCore
 import XCTest
 
 @MainActor
@@ -153,7 +154,7 @@ final class RuntimeInspectTests: XCTestCase {
         try await page.dispatchMouse("click", on: "document.getElementById('long')")
 
         let select = try await page.message(ofType: "select")
-        XCTAssertEqual((select["outerHTML"] as? String)?.count, 20000)
+        XCTAssertEqual((select["outerHTML"] as? String)?.count, PageElement.maxHTMLLength)
         XCTAssertEqual((select["text"] as? String)?.count, 2000)
     }
 

@@ -45,9 +45,15 @@ extension CanvasViewController {
         })
     }
 
-    /// Stores the page's current look under `key` (if that is still its content key). Skipped while
+    /// Stores the page's look under `key` (if that is still its content key) once its entrance animations
+    /// finish. When the cache already holds `key` the content is the same, so that render (which waited for
+    /// them too) goes back on the layer instead, replacing any look shown during a reload. Not stored while
     /// the window is covered, where WebKit may not answer.
     private func keepLook(of live: LiveBoard, as key: SnapshotKey) async {
+        guard snapshotKeys[key.artboardID] == key, let snapshots else { return }
+        if let cached = snapshots.snapshot(for: key) { return await showSnapshot(cached, on: key.artboardID) }
+        guard isWindowVisible else { return }
+        try? await live.waitUntilSettled()
         guard isWindowVisible, let size = canvasView.board(live.artboardID)?.rect.size,
               let png = await live.currentLook(nativeSize: size) else { return }
         storeSnapshot(png, for: key)
