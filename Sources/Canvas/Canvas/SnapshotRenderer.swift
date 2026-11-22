@@ -10,8 +10,10 @@ import WebKit
 final class SnapshotRenderer {
     private let schemeHandler: DocumentSchemeHandler
     private let window: NSWindow
-    /// Time for the first frames (web fonts, entrance animations) after the page loads.
-    private let settleTime: Duration = .milliseconds(250)
+    /// `Canvas.settled()` gives up after 3 s; this bounds a page that never answers.
+    private let settleTimeout: Duration = .seconds(4)
+    /// The wait instead, when the page can't run `Canvas.settled()`.
+    private let fallbackSettleTime: Duration = .milliseconds(250)
 
     init(schemeHandler: DocumentSchemeHandler) {
         self.schemeHandler = schemeHandler
@@ -31,8 +33,22 @@ final class SnapshotRenderer {
         defer { page.webView.removeFromSuperview() }
         page.load()
         guard await page.waitUntilLoaded() else { throw SnapshotError.loadFailed }
-        try await Task.sleep(for: settleTime)
+        try await waitUntilSettled(page)
         return try await page.pngSnapshot(nativeSize: size)
+    }
+
+    /// Waits for the page's web fonts and entrance animations (`Canvas.settled()`). A page that throws
+    /// gets the short fallback wait; one that doesn't answer is given up on after `settleTimeout`.
+    private func waitUntilSettled(_ page: LiveBoard) async throws {
+        do {
+            try await withTimeout(settleTimeout) { [webView = page.webView] in
+                _ = try await webView.callAsyncJavaScript("await Canvas.settled()", arguments: [:], in: nil, contentWorld: .page)
+            }
+        } catch SnapshotError.timedOut {
+            return
+        } catch {
+            try await Task.sleep(for: fallbackSettleTime)
+        }
     }
 
     /// A borderless window far off screen; web views only paint inside a window.

@@ -717,6 +717,40 @@
     return { ...info, outerHTML: truncate(info.outerHTML, MAX_DESCRIBED_HTML_LENGTH), truncated: true };
   };
 
+  // MARK: - Settled (what an off-screen snapshot waits for)
+
+  const SETTLE_LIMIT_MS = 3000;
+
+  // The native timer and frame, so pause() can't stretch the wait.
+  const nativeDelay = (ms) => new Promise((resolve) => native.setTimeout(resolve, ms));
+
+  const nextFrame = () => new Promise((resolve) => native.requestAnimationFrame(resolve));
+
+  const endsOnItsOwn = (animation) => Number.isFinite(animation.effect?.getComputedTiming().endTime);
+
+  // Only running animations count: a paused page settles at once, and a pause mid-wait runs to the cap.
+  const runningEntrances = () =>
+    animationsIn(allRoots()).filter((animation) => animation.playState === "running" && endsOnItsOwn(animation));
+
+  // A cancelled animation rejects `finished`; it counts as done.
+  const whenFinished = (animation) => animation.finished.catch(() => {});
+
+  // Two frames first, so animations declared in CSS at load exist; then again for any that start as others end,
+  // a frame after each batch (`finished` resolves before `animationend` handlers run), until the deadline.
+  const entrancesFinished = async (deadline) => {
+    await nextFrame();
+    await nextFrame();
+    await document.fonts.ready;
+    for (let running = runningEntrances(); running.length && performance.now() < deadline; running = runningEntrances()) {
+      await Promise.all(running.map(whenFinished));
+      await nextFrame();
+    }
+  };
+
+  // Resolves once web fonts load and every finite animation finishes, or after SETTLE_LIMIT_MS, whichever comes first.
+  const settled = () =>
+    Promise.race([entrancesFinished(performance.now() + SETTLE_LIMIT_MS), nativeDelay(SETTLE_LIMIT_MS)]).then(() => undefined);
+
   // MARK: - Ready
 
   const announceReady = () => post({ type: "ready" });
@@ -749,6 +783,7 @@
     selector,
     elementAt,
     describe: describeSelector,
+    settled,
     logs,
   });
 
