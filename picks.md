@@ -19,3 +19,5 @@
 - Big boards (2026-11-21): "Smaller snapshots"
 - Note pointers (2026-11-21): "Notes too"
 - Snapshots (2026-11-21): "Wait for animations (Recommended)"
+- Land v1 (2026-11-21): "Push and open a PR"
+- Repo (2026-11-21): "new public, openpaper"

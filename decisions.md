@@ -15,3 +15,4 @@
 - **Copy pointer (v1):** right-click any element on any board at any zoom: Copy pointer (`canvas:<board> > <selector>`), Copy board pointer, Copy HTML, with a hover outline; Claude looks pointers up with `get_element`. Images and comments get pointers in the notes feature. (2026-11-21)
 - **Huge boards:** snapshot them at reduced resolution so they never go blank; no area cap. (2026-11-21)
 - **Snapshot timing:** wait for the page's finite animations to finish (cap ~3 s, loops ignored) before snapshotting. (2026-11-21)
+- **Landing v1:** push to a new public GitHub repo `openpaper` and open a PR from `feat/v1` into `main`. (2026-11-21)
