@@ -1,0 +1,85 @@
+<style>
+  .hero {
+    box-sizing: border-box; width: 1280px; height: 800px; padding: 0 56px; display: flex; flex-direction: column;
+    background: var(--color-bg); color: var(--color-fg); font-family: var(--font-sans); -webkit-font-smoothing: antialiased;
+  }
+  nav { height: 88px; display: flex; align-items: center; gap: 40px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 700 21px/1 var(--font-sans); letter-spacing: -0.03em; }
+  .mark { width: 22px; height: 22px; border-radius: 50%; background: var(--color-accent); box-shadow: inset -6px -6px 0 rgba(0, 0, 0, 0.12); }
+  .links { display: flex; gap: 28px; font: 500 15px/1 var(--font-sans); color: var(--color-muted); }
+  .links span:first-child { color: var(--color-fg); }
+  .sign-in { margin-left: auto; font: 600 15px/1 var(--font-sans); }
+
+  main { flex: 1; display: grid; grid-template-columns: 600px 1fr; gap: 48px; align-items: center; padding-bottom: 56px; }
+  h1 { margin: 0; font-size: 58px; line-height: 1.04; letter-spacing: -0.04em; font-weight: 700; }
+  .lede { margin: 24px 0 36px; max-width: 30em; font-size: 19px; line-height: 1.5; color: var(--color-muted); }
+  .actions { display: flex; gap: 12px; }
+
+  .sky {
+    position: relative; height: 600px; border-radius: var(--radius-lg); overflow: hidden;
+    background: linear-gradient(175deg, var(--sky-top), var(--sky-mid) 55%, var(--sky-low));
+    background-size: 100% 160%; animation: drift 14s ease-in-out infinite alternate;
+  }
+  @keyframes drift { from { background-position: 50% 0%; } to { background-position: 50% 100%; } }
+  .glow {
+    position: absolute; width: 420px; height: 420px; left: 40%; top: 46%; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 236, 214, 0.75), rgba(255, 236, 214, 0) 65%);
+    animation: breathe 9s ease-in-out infinite alternate;
+  }
+  @keyframes breathe { from { transform: translate(-50%, -50%) scale(0.9); } to { transform: translate(-46%, -54%) scale(1.08); } }
+  .route { position: absolute; inset: 0; }
+  .route path { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 2; stroke-dasharray: 2 9; stroke-linecap: round; }
+  .plane {
+    position: absolute; top: 0; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.25);
+    offset-path: path("M 76 424 C 150 230, 320 150, 444 176"); offset-rotate: 0deg;
+    animation: fly 6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+  @keyframes fly { 0% { offset-distance: 0%; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  .city { position: absolute; display: flex; align-items: center; gap: 8px; font: 600 13px/1 var(--font-sans); color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.18); }
+  .city::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; }
+  .from { left: 70px; top: 418px; }
+  .to { left: 439px; top: 170px; }
+
+  .summary {
+    position: absolute; left: 28px; right: 28px; bottom: 28px; padding: 20px 22px; display: grid; gap: 14px;
+    background: var(--color-surface); border-radius: 18px; box-shadow: var(--shadow-card);
+    animation: float 7s ease-in-out infinite alternate;
+  }
+  .summary-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .summary strong { font-size: 18px; letter-spacing: -0.02em; }
+  .summary small { font-size: 14px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+  .chips { display: flex; gap: 8px; }
+  @keyframes float { to { transform: translateY(-6px); } }
+  .chip { padding: 7px 12px; border-radius: var(--radius-pill); background: var(--color-raised); font: 500 13px/1 var(--font-sans); color: var(--color-muted); }
+  .chip b { color: var(--color-fg); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .sky, .glow, .plane, .summary { animation: none; } }
+</style>
+<div class="hero">
+  <nav>
+    <div class="brand"><span class="mark"></span>Tern</div>
+    <div class="links"><span>Trips</span><span>Guides</span><span>Pricing</span></div>
+    <span class="sign-in">Sign in</span>
+  </nav>
+  <main>
+    <div>
+      <h1>Plan the trip,<br>not the spreadsheet.</h1>
+      <p class="lede">Tern turns bookings, tickets and saved places into one calm itinerary you can share with a link.</p>
+      <div class="actions">
+        <x-button label="Start a trip">&rarr;</x-button>
+        <x-button label="See a sample trip" tone="quiet"></x-button>
+      </div>
+    </div>
+    <div class="sky">
+      <div class="glow"></div>
+      <svg class="route" viewBox="0 0 520 600" width="520" height="600"><path d="M 76 424 C 150 230, 320 150, 444 176"/></svg>
+      <span class="city from">Lisbon</span>
+      <span class="city to">Kyoto</span>
+      <span class="plane"></span>
+      <div class="summary">
+        <div class="summary-top"><strong>Kyoto with Inês</strong><small>Apr 14 to 20</small></div>
+        <div class="chips"><span class="chip"><b>2</b> flights</span><span class="chip"><b>1</b> hotel</span><span class="chip"><b>4</b> reservations</span></div>
+      </div>
+    </div>
+  </main>
+</div>

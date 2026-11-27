@@ -1,0 +1,99 @@
+name: Canvas
+
+options:
+  bundleIdPrefix: local.canvas
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Sign to Run Locally: ad-hoc signature, no team.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    ENABLE_APP_SANDBOX: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  CanvasCore:
+    type: framework
+    platform: macOS
+    sources:
+      # Code: every subfolder (Document/, Bridge/, ...) is picked up automatically.
+      - path: Sources/CanvasCore
+        excludes:
+          - "Resources/**"
+      # Resources: every file in Resources/ is copied flat into the framework bundle.
+      - path: Sources/CanvasCore/Resources
+        buildPhase: resources
+        excludes:
+          - ".gitkeep"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.canvas.core
+        PRODUCT_NAME: CanvasCore
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+        DEFINES_MODULE: YES
+
+  Canvas:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Canvas
+    dependencies:
+      - target: CanvasCore
+        embed: true
+      - target: canvas-mcp
+        embed: true
+        codeSign: true
+        copy:
+          destination: wrapper
+          subpath: Contents/Helpers
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.canvas.app
+        PRODUCT_NAME: Canvas
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.graphics-design
+        INFOPLIST_KEY_CFBundleDisplayName: Canvas
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        COMBINE_HIDPI_IMAGES: YES
+    scheme:
+      testTargets:
+        - CanvasCoreTests
+      gatherCoverageData: false
+
+  canvas-mcp:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/canvas-mcp
+    settings:
+      base:
+        PRODUCT_NAME: canvas-mcp
+        PRODUCT_BUNDLE_IDENTIFIER: local.canvas.mcp
+        SKIP_INSTALL: YES
+
+  CanvasCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/CanvasCoreTests
+    dependencies:
+      - target: CanvasCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: local.canvas.core.tests
+        GENERATE_INFOPLIST_FILE: YES
+        # No host app: tests run inside the xctest runner.
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""

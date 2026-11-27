@@ -1,0 +1,16 @@
+<style>
+  :host { display: inline-block; }
+  .button {
+    display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px;
+    border: 1px solid transparent; border-radius: var(--radius-pill);
+    font: 600 15px/1 var(--font-sans); letter-spacing: -0.01em; white-space: nowrap; cursor: pointer;
+    transition: transform 160ms var(--ease-out), background-color 200ms ease, border-color 200ms ease;
+  }
+  .button:active { transform: scale(0.97); }
+  .primary { background: var(--color-accent); color: var(--color-on-accent); }
+  .primary:hover { filter: brightness(1.05); }
+  .quiet { background: transparent; color: var(--color-fg); border-color: var(--color-line); }
+  .quiet:hover { border-color: var(--color-muted); }
+  ::slotted(*) { font-size: 16px; line-height: 1; }
+</style>
+<button class="button {{tone|primary}}" type="button"><span>{{label|Continue}}</span><slot></slot></button>

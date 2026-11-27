@@ -1,0 +1,41 @@
+<style>
+  .page {
+    box-sizing: border-box; width: 1280px; height: 800px; padding: 56px; display: flex; flex-direction: column; gap: 36px;
+    background: var(--color-bg); color: var(--color-fg); font-family: var(--font-sans); -webkit-font-smoothing: antialiased;
+  }
+  header { display: flex; align-items: flex-end; justify-content: space-between; }
+  h2 { margin: 0; font-size: 40px; line-height: 1.1; letter-spacing: -0.035em; font-weight: 700; }
+  header p { margin: 10px 0 0; font-size: 17px; color: var(--color-muted); }
+  .grid { flex: 1; display: grid; grid-template-columns: 1.35fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px; }
+  .grid x-trip-card:first-child { grid-row: span 2; }
+  /* The cards start settled (so a still frame is complete), then every 8 s step out and back in, one after another. */
+  .grid x-trip-card { animation: reshuffle 8s infinite; animation-delay: calc(var(--i) * 90ms + 2s); }
+  @keyframes reshuffle {
+    0%, 72% { opacity: 1; transform: none; }
+    78% { opacity: 0; transform: translateY(18px) scale(0.985); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+    100% { opacity: 1; transform: none; }
+  }
+  .pill {
+    display: inline-block; padding: 7px 12px; border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.86); color: #14161a; font: 600 12px/1 var(--font-sans); letter-spacing: 0.01em;
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  }
+  .pill.accent { background: var(--color-accent); color: var(--color-on-accent); }
+  @media (prefers-reduced-motion: reduce) { .grid x-trip-card { animation: none; } }
+</style>
+<div class="page">
+  <header>
+    <div>
+      <h2>Saved trips</h2>
+      <p>Five trips this year, two shared with Inês and Marco.</p>
+    </div>
+    <x-button label="New trip" tone="quiet">+</x-button>
+  </header>
+  <div class="grid">
+    <x-trip-card style="--i: 0; --from: #f6c9b4; --to: #b9606a; --ridge: rgba(255, 233, 222, 0.3); --ridge-near: rgba(70, 22, 40, 0.22)" place="Kyoto" country="Japan" dates="Apr 14 to 20" nights="6"><span class="pill accent" slot="tag">Next up</span></x-trip-card>
+    <x-trip-card style="--i: 1; --from: #a9d3f0; --to: #f5d6a8" place="Lisbon" country="Portugal" dates="May 2 to 6" nights="4"><span class="pill" slot="tag">Shared</span></x-trip-card>
+    <x-trip-card style="--i: 2; --from: #f7c873; --to: #d9603b; --ridge-near: rgba(90, 24, 8, 0.2)" place="Oaxaca" country="Mexico" dates="Jun 11 to 15" nights="4"></x-trip-card>
+    <x-trip-card style="--i: 3; --from: #8cc8e8; --to: #e6f0f5; --ridge: rgba(255, 255, 255, 0.5); --ridge-near: rgba(30, 80, 120, 0.16)" place="Hydra" country="Greece" dates="Sep 9 to 12" nights="3"><span class="pill" slot="tag">Shared</span></x-trip-card>
+    <x-trip-card style="--i: 4; --from: #16263f; --to: #3f8f88; --ridge: rgba(140, 230, 200, 0.18); --ridge-near: rgba(0, 0, 0, 0.3)" place="Tromsø" country="Norway" dates="Oct 3 to 8" nights="5"></x-trip-card>
+  </div>
+</div>

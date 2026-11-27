@@ -1,0 +1,99 @@
+<style>
+  .phone {
+    box-sizing: border-box; width: 390px; height: 844px; padding: 0 24px 34px; display: flex; flex-direction: column;
+    background: var(--color-bg); color: var(--color-fg); font-family: var(--font-sans); -webkit-font-smoothing: antialiased;
+  }
+  .status { height: 50px; padding: 0 6px; display: flex; align-items: center; font: 600 16px/1 var(--font-sans); }
+  .top { padding: 8px 0 0; font: 500 16px/1 var(--font-sans); color: var(--color-accent); }
+
+  .progress { margin-top: 56px; display: grid; justify-items: center; text-align: center; }
+  .ring { position: relative; width: 168px; height: 168px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 10; }
+  .track { stroke: var(--color-line); }
+  .fill { stroke: var(--color-accent); stroke-linecap: round; transition: stroke 300ms ease; }
+  .done .fill { stroke: var(--color-ok); }
+  .percent {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font: 650 40px/1 var(--font-sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  }
+  h2 { margin: 28px 0 0; font-size: 24px; letter-spacing: -0.03em; }
+  .progress p { margin: 8px 0 0; font-size: 15px; color: var(--color-muted); }
+
+  ul { margin: 40px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  li {
+    display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; padding: 14px 16px;
+    border-radius: var(--radius-md); background: var(--color-surface);
+  }
+  .check {
+    width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--color-raised); color: transparent; font: 700 13px/1 var(--font-sans);
+    transition: background-color 300ms ease, color 300ms ease, transform 400ms var(--ease-out);
+  }
+  li.found .check { background: var(--color-ok); color: var(--color-surface); transform: scale(1.06); }
+  li b { display: block; font-size: 15px; font-weight: 600; }
+  .detail { position: relative; height: 18px; margin-top: 4px; }
+  .detail span { position: absolute; inset: 0; font-size: 13px; line-height: 18px; color: var(--color-muted); white-space: nowrap; opacity: 0; transform: translateY(4px); transition: opacity 300ms ease, transform 400ms var(--ease-out); }
+  .detail i {
+    position: absolute; top: 4px; left: 0; height: 10px; width: var(--w, 70%); border-radius: 5px;
+    background: linear-gradient(90deg, var(--color-raised) 30%, var(--color-line) 50%, var(--color-raised) 70%) 0 0 / 300% 100%;
+    animation: shimmer 1.4s linear infinite; transition: opacity 200ms ease;
+  }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+  li.found .detail span { opacity: 1; transform: none; }
+  li.found .detail i { opacity: 0; }
+
+  .cta { margin-top: auto; display: flex; justify-content: center; opacity: 0.35; transition: opacity 400ms ease; }
+  .done .cta { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .detail i { animation: none; } }
+</style>
+<div class="phone">
+  <div class="status">9:41</div>
+  <div class="top">Cancel</div>
+  <div class="progress">
+    <div class="ring">
+      <svg width="168" height="168" viewBox="0 0 168 168"><circle class="track" cx="84" cy="84" r="74"/><circle class="fill" cx="84" cy="84" r="74"/></svg>
+      <div class="percent" data-percent>0%</div>
+    </div>
+    <h2 data-title>Importing your bookings</h2>
+    <p>From emails forwarded by maya@example.com</p>
+  </div>
+  <ul>
+    <li data-at="18"><span class="check">&#10003;</span><div><b>Flights</b><div class="detail"><i style="--w: 82%"></i><span>TP 1347 to Paris, AF 292 to Osaka</span></div></div></li>
+    <li data-at="42"><span class="check">&#10003;</span><div><b>Hotels</b><div class="detail"><i style="--w: 56%"></i><span>Hotel Kanra Kyoto, 6 nights</span></div></div></li>
+    <li data-at="66"><span class="check">&#10003;</span><div><b>Rail</b><div class="detail"><i style="--w: 40%"></i><span>JR Pass, 7 days from April 14</span></div></div></li>
+    <li data-at="92"><span class="check">&#10003;</span><div><b>Reservations</b><div class="detail"><i style="--w: 64%"></i><span>Four tables and one tea ceremony</span></div></div></li>
+  </ul>
+  <div class="cta"><x-button label="Open itinerary"></x-button></div>
+</div>
+<script>
+  const phone = document.querySelector(".phone");
+  const fill = document.querySelector(".fill");
+  const percentLabel = document.querySelector("[data-percent]");
+  const title = document.querySelector("[data-title]");
+  const sources = [...document.querySelectorAll("li[data-at]")];
+  const circumference = 2 * Math.PI * 74;
+  const importTime = 7000;
+  const holdTime = 2200;
+  fill.style.strokeDasharray = String(circumference);
+
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  const showProgress = (percent) => {
+    fill.style.strokeDashoffset = String(circumference * (1 - percent / 100));
+    percentLabel.textContent = `${Math.round(percent)}%`;
+    sources.forEach((source) => source.classList.toggle("found", percent >= Number(source.dataset.at)));
+    const done = percent >= 100;
+    phone.classList.toggle("done", done);
+    title.textContent = done ? "All set for Kyoto" : "Importing your bookings";
+  };
+
+  // Start partway through, so a still frame shows the import under way.
+  let cycleStart = performance.now() - importTime * 0.55;
+  const frame = (now) => {
+    const elapsed = now - cycleStart;
+    if (elapsed > importTime + holdTime) cycleStart = now;
+    showProgress(100 * easeInOut(Math.min(1, elapsed / importTime)));
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+</script>

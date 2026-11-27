@@ -1,0 +1,72 @@
+{
+  "artboards" : [
+    {
+      "file" : "artboards/hero.html",
+      "height" : 800,
+      "id" : "hero",
+      "mode" : null,
+      "name" : "Hero",
+      "page" : "web",
+      "width" : 1280,
+      "x" : 0,
+      "y" : 0
+    },
+    {
+      "file" : "artboards/saved-trips.html",
+      "height" : 800,
+      "id" : "saved-trips",
+      "mode" : null,
+      "name" : "Saved trips",
+      "page" : "web",
+      "width" : 1280,
+      "x" : 1360,
+      "y" : 0
+    },
+    {
+      "file" : "artboards/itinerary.html",
+      "height" : 844,
+      "id" : "itinerary",
+      "mode" : null,
+      "name" : "Itinerary",
+      "page" : "app",
+      "width" : 390,
+      "x" : 0,
+      "y" : 0
+    },
+    {
+      "file" : "artboards/itinerary-dark.html",
+      "height" : 844,
+      "id" : "itinerary-dark",
+      "mode" : "dark",
+      "name" : "Itinerary (dark)",
+      "page" : "app",
+      "width" : 390,
+      "x" : 470,
+      "y" : 0
+    },
+    {
+      "file" : "artboards/importing.html",
+      "height" : 844,
+      "id" : "importing",
+      "mode" : null,
+      "name" : "Importing bookings",
+      "page" : "app",
+      "width" : 390,
+      "x" : 940,
+      "y" : 0
+    }
+  ],
+  "currentPage" : "web",
+  "mode" : "light",
+  "pages" : [
+    {
+      "id" : "web",
+      "name" : "Website"
+    },
+    {
+      "id" : "app",
+      "name" : "App"
+    }
+  ],
+  "version" : 1
+}

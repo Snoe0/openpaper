@@ -1,0 +1,80 @@
+<style>
+  .phone {
+    box-sizing: border-box; width: 390px; height: 844px; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--color-bg); color: var(--color-fg); font-family: var(--font-sans); -webkit-font-smoothing: antialiased;
+  }
+  .status { height: 50px; padding: 0 30px; display: flex; align-items: center; font: 600 16px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+  header { padding: 14px 24px 0; }
+  .eyebrow { font-size: 14px; color: var(--color-muted); }
+  h1 { margin: 6px 0 0; font-size: 30px; line-height: 1.1; letter-spacing: -0.035em; font-weight: 700; }
+  .days { display: flex; gap: 8px; padding: 18px 24px 0; }
+  .day {
+    width: 50px; padding: 9px 0; display: grid; justify-items: center; gap: 4px; border-radius: var(--radius-md);
+    background: var(--color-surface); font: 500 12px/1 var(--font-sans); color: var(--color-muted);
+  }
+  .day b { font-size: 17px; font-weight: 650; color: var(--color-fg); font-variant-numeric: tabular-nums; }
+  .day.today { background: var(--color-fg); color: var(--color-bg); }
+  .day.today b { color: var(--color-bg); }
+
+  .next {
+    margin: 22px 24px 0; padding: 18px; border-radius: var(--radius-lg); display: grid; gap: 4px;
+    background: var(--color-accent-soft);
+  }
+  .next small { font: 600 13px/1 var(--font-sans); color: var(--color-accent); }
+  .next strong { font-size: 26px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .next span { font-size: 14px; line-height: 1.4; color: var(--color-muted); }
+
+  .stops { flex: 1; padding: 26px 24px 0; }
+  .chip {
+    align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-pill);
+    background: var(--color-surface); font: 500 13px/1 var(--font-sans); color: var(--color-fg);
+  }
+
+  .tabs {
+    height: 84px; padding: 0 30px 18px; display: flex; align-items: center; justify-content: space-between;
+    border-top: 1px solid var(--color-line); background: var(--color-surface);
+    font: 500 12px/1 var(--font-sans); color: var(--color-muted);
+  }
+  .tabs .active { color: var(--color-accent); font-weight: 650; }
+</style>
+<div class="phone">
+  <div class="status">9:41</div>
+  <header>
+    <div class="eyebrow">Kyoto, day 3 of 6</div>
+    <h1>Thursday, April 16</h1>
+  </header>
+  <div class="days">
+    <div class="day">Tue<b>14</b></div>
+    <div class="day">Wed<b>15</b></div>
+    <div class="day today">Thu<b>16</b></div>
+    <div class="day">Fri<b>17</b></div>
+    <div class="day">Sat<b>18</b></div>
+    <div class="day">Sun<b>19</b></div>
+  </div>
+  <div class="next">
+    <small>Leave for Fushimi Inari in</small>
+    <strong data-countdown>12:00</strong>
+    <span>JR Nara line from Kyoto Station, platform 8. Two stops.</span>
+  </div>
+  <div class="stops">
+    <x-stop state="done" time="07:30" title="Breakfast at Hotel Kanra" detail="Included in your stay"></x-stop>
+    <x-stop state="now" time="09:10" title="Fushimi Inari Taisha" detail="Go early: the upper trail stays quiet until ten."><span class="chip">JR Nara line, 5 min</span></x-stop>
+    <x-stop time="12:30" title="Lunch at Nishiki Market" detail="Tamagoyaki at Miki Keiran, then the knife shops."></x-stop>
+    <x-stop time="15:00" title="Tea ceremony, Camellia Garden" detail="Confirmation KX-4471. Arrive ten minutes early."></x-stop>
+    <x-stop time="19:00" title="Dinner in Gion" detail="Table for two at Gion Nanba"></x-stop>
+  </div>
+  <nav class="tabs"><span class="active">Today</span><span>Trip</span><span>Map</span><span>Bookings</span></nav>
+</div>
+<script>
+  const countdown = document.querySelector("[data-countdown]");
+  const startedAt = performance.now();
+  const totalSeconds = 12 * 60;
+  const formatted = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const tick = (now) => {
+    const left = Math.max(0, totalSeconds - Math.floor((now - startedAt) / 1000));
+    const text = formatted(left);
+    if (countdown.textContent !== text) countdown.textContent = text;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+</script>
